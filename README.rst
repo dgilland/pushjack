@@ -2,30 +2,125 @@
 pushjack
 ********
 
-.. Coming soon...
-    |version| |travis| |coveralls| |license|
+|version| |travis| |coveralls| |license|
 
 Push notifications for APNS (iOS) and GCM (Android).
 
 
-.. Coming soon...
-    Links
-    =====
+Links
+=====
 
-    - Project: https://github.com/dgilland/pushjack
-    - Documentation: http://pushjack.readthedocs.org
-    - PyPi: https://pypi.python.org/pypi/pushjack/
-    - TravisCI: https://travis-ci.org/dgilland/pushjack
+- Project: https://github.com/dgilland/pushjack
+- Documentation: http://pushjack.readthedocs.org
+- PyPi: https://pypi.python.org/pypi/pushjack/
+- TravisCI: https://travis-ci.org/dgilland/pushjack
 
 
-    .. |version| image:: http://img.shields.io/pypi/v/pushjack.svg?style=flat-square
-        :target: https://pypi.python.org/pypi/pushjack/
+Quickstart
+==========
 
-    .. |travis| image:: http://img.shields.io/travis/dgilland/pushjack/master.svg?style=flat-square
-        :target: https://travis-ci.org/dgilland/pushjack
+Whether using ``APNS`` or ``GCM``, pushjack provides a common API interface for each.
 
-    .. |coveralls| image:: http://img.shields.io/coveralls/dgilland/pushjack/master.svg?style=flat-square
-        :target: https://coveralls.io/r/dgilland/pushjack
 
-    .. |license| image:: http://img.shields.io/pypi/l/pushjack.svg?style=flat-square
-        :target: https://pypi.python.org/pypi/pushjack/
+APNS
+----
+
+.. code-block:: python
+
+    from pushjack import APNSClient, create_apns_config
+
+    settings = create_apns_config()
+    settings['APNS_CERTIFICATE'] = '<path/to/certificate.pem>'
+
+    client = APNSClient(settings)
+
+    # Send to single device.
+    client.send(token, alert, **options)
+
+    # Sent to multiple devices.
+    client.send_bulk(tokens, alert, **options)
+
+    # Get expired tokens.
+    expired = client.get_expired_tokens()
+
+
+GCM
+---
+
+.. code-block:: python
+
+    from pushjack import GCMClient, create_gcm_config
+
+    settings = create_gcm_config()
+    settings['GCM_API_KEY'] = '<api key>'
+
+    client = GCMClient(settings)
+
+    # Send to single device.
+    client.send(token, alert, **options)
+
+    # Sent to multiple devices.
+    client.send_bulk(tokens, alert, **options)
+
+
+Settings
+--------
+
+The settings object for configuring a client is expected to be a ``dict`` or subclass of ``dict``:
+
+
+.. code-block:: python
+
+    gcm_settings = {
+        'GCM_API_KEY': '<api key>',
+        'GCM_URL': 'https://android.googleapis.com/gcm/send',
+        'GCM_MAX_RECIPIENTS': 1000
+    }
+
+    apns_settings = {
+        'APNS_CERTIFICATE': '<path/to/certificate.pem>',
+        'APNS_HOST': 'gateway.push.apple.com',
+        'APNS_PORT': 2195,
+        'APNS_FEEDBACK_HOST': 'feedback.push.apple.com',
+        'APNS_FEEDBACK_PORT': 2196,
+        'APNS_ERROR_TIMEOUT': 0.5,
+        'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30
+        'APNS_MAX_NOTIFICATION_SIZE': 2048
+    }
+
+
+For a class based approached, configuration classes are provided for subclassing:
+
+
+.. code-block:: python
+
+    from pushjack import GCMConfig, APNSConfig, APNSSandboxConfig
+
+    class MyGCMConfig(GCMConfig):
+        GCM_API_KEY = '<api key>'
+
+    class MyAPNSConfig(APNSConfig):
+        APNS_CERTIFICATE = '<path/to/certificate.pem>'
+
+    class MyAPNSSandboxConfig(APNSConfig):
+        APNS_CERTIFICATE = '<path/to/certificate.pem>'
+
+
+By default, both ``GCMConfig``, ``APNSConfig``, and ``APNSSandboxConfig`` will set default values for the settings that shouldn't change. You will need to set ``GCM_API_KEY`` or ``APNS_CERTIFICATE`` appropriately though.
+
+
+
+For more details, please see the full documentation at http://pushjack.readthedocs.org.
+
+
+.. |version| image:: http://img.shields.io/pypi/v/pushjack.svg?style=flat-square
+    :target: https://pypi.python.org/pypi/pushjack/
+
+.. |travis| image:: http://img.shields.io/travis/dgilland/pushjack/master.svg?style=flat-square
+    :target: https://travis-ci.org/dgilland/pushjack
+
+.. |coveralls| image:: http://img.shields.io/coveralls/dgilland/pushjack/master.svg?style=flat-square
+    :target: https://coveralls.io/r/dgilland/pushjack
+
+.. |license| image:: http://img.shields.io/pypi/l/pushjack.svg?style=flat-square
+    :target: https://pypi.python.org/pypi/pushjack/
