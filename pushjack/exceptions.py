@@ -7,7 +7,8 @@ from ._compat import iteritems
 
 class NotificationError(Exception):
     """Base exception for all notification errors."""
-    pass
+    code = None
+    description = None
 
 
 class GCMError(NotificationError):
