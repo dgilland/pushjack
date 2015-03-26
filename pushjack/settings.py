@@ -3,6 +3,8 @@
 notification services.
 """
 
+from ._compat import iteritems
+
 
 __all__ = (
     'APNSConfig',
@@ -19,7 +21,8 @@ class Config(dict):
     values from an object limited to ``ALL_CAPS_ATTRIBUTES``.
     """
     def __init__(self, defaults=None):
-        super(Config, self).__init__(defaults or {})
+        self.from_object(self)
+        self.from_dict(defaults or {})
 
     def from_object(self, obj):
         """Pull ``dir(obj)`` keys from `obj` and set onto ``self``."""
@@ -27,12 +30,11 @@ class Config(dict):
             if key.isupper():
                 self[key] = getattr(obj, key)
 
-    @classmethod
-    def create(cls):
-        """Create and return a configured Config object using our class."""
-        obj = cls()
-        obj.from_object(obj)
-        return obj
+    def from_dict(self, dct):
+        """Pull keys from `dct` and set onto ``self``."""
+        for key, value in iteritems(dct):
+            if key.isupper():
+                self[key] = value
 
 
 class GCMConfig(Config):
@@ -68,16 +70,16 @@ class APNSSandboxConfig(APNSConfig):
     APNS_FEEDBACK_HOST = 'feedback.sandbox.push.apple.com'
 
 
-def create_gcm_config():
+def create_gcm_config(settings=None):
     """Convenience method to create a GCM config."""
-    return GCMConfig.create()
+    return GCMConfig(settings)
 
 
-def create_apns_config():
+def create_apns_config(settings=None):
     """Convenience method to create an APNS config."""
-    return APNSConfig.create()
+    return APNSConfig(settings)
 
 
-def create_apns_sandbox_config():
+def create_apns_sandbox_config(settings=None):
     """Convenience method to create an APNS sandbox config."""
-    return APNSSandboxConfig.create()
+    return APNSSandboxConfig(settings)

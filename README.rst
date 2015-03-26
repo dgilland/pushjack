@@ -29,8 +29,9 @@ APNS
 
     from pushjack import APNSClient, create_apns_config
 
-    settings = create_apns_config()
-    settings['APNS_CERTIFICATE'] = '<path/to/certificate.pem>'
+    settings = create_apns_config({
+        'APNS_CERTIFICATE': '<path/to/certificate.pem>'
+    })
 
     client = APNSClient(settings)
 
@@ -51,8 +52,9 @@ GCM
 
     from pushjack import GCMClient, create_gcm_config
 
-    settings = create_gcm_config()
-    settings['GCM_API_KEY'] = '<api key>'
+    settings = create_gcm_config({
+        'GCM_API_KEY': '<api key>'
+    })
 
     client = GCMClient(settings)
 
