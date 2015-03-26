@@ -107,6 +107,8 @@ def create_socket(host, port, certfile):
                         .format(certfile, ex)))
 
     sock = socket.socket()
+
+    # pylint: disable=no-member
     sock = ssl.wrap_socket(sock,
                            ssl_version=ssl.PROTOCOL_TLSv1,
                            certfile=certfile)
