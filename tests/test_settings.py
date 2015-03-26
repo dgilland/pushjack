@@ -23,4 +23,3 @@ def test_config():
 
     assert config['BAR'] == TestConfig.BAR
     assert not hasattr(config, 'ignored_again')
-
