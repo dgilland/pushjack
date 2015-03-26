@@ -4,6 +4,7 @@
 
 from . import apns
 from . import gcm
+from .settings import Config
 
 
 __all__ = (
@@ -18,6 +19,9 @@ class Client(object):
     adapter = None
 
     def __init__(self, settings):
+        if isinstance(settings, type) and issubclass(settings, Config):
+            settings = Config()
+
         self.settings = settings
 
     def send(self, registration_id, alert, **options):

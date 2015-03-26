@@ -91,12 +91,12 @@ The settings object for configuring a client is expected to be a ``dict`` or sub
     }
 
 
-For a class based approached, configuration classes are provided for subclassing:
+For a class based approached, configuration classes are provided for subclassing which can be passed to each client class. By default, both ``GCMConfig``, ``APNSConfig``, and ``APNSSandboxConfig`` will set default values for the settings that shouldn't change. You will need to set ``GCM_API_KEY`` or ``APNS_CERTIFICATE`` appropriately though:
 
 
 .. code-block:: python
 
-    from pushjack import GCMConfig, APNSConfig, APNSSandboxConfig
+    from pushjack import GCMClient, GCMConfig, APNSConfig, APNSSandboxConfig
 
     class MyGCMConfig(GCMConfig):
         GCM_API_KEY = '<api key>'
@@ -108,7 +108,10 @@ For a class based approached, configuration classes are provided for subclassing
         APNS_CERTIFICATE = '<path/to/certificate.pem>'
 
 
-By default, both ``GCMConfig``, ``APNSConfig``, and ``APNSSandboxConfig`` will set default values for the settings that shouldn't change. You will need to set ``GCM_API_KEY`` or ``APNS_CERTIFICATE`` appropriately though.
+    client = GCMClient(MyGCMConfig)
+
+
+**NOTE:** You can only pass in a class to the client initializer if it is a subclass of one of the provided ``*Config`` classes.
 
 
 
