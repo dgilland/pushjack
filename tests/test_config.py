@@ -1,5 +1,5 @@
 
-from pushjack.settings import Config
+from pushjack.config import Config
 
 from .fixtures import parametrize
 

@@ -117,25 +117,25 @@ def create_socket(host, port, certfile):
     return sock
 
 
-def create_push_socket(settings):
+def create_push_socket(config):
     """Return socket connection to push server."""
-    return create_socket(settings['APNS_HOST'],
-                         settings['APNS_PORT'],
-                         settings['APNS_CERTIFICATE'])
+    return create_socket(config['APNS_HOST'],
+                         config['APNS_PORT'],
+                         config['APNS_CERTIFICATE'])
 
 
-def create_feedback_socket(settings):
+def create_feedback_socket(config):
     """Return socket connection to feedback server."""
-    return create_socket(settings['APNS_FEEDBACK_HOST'],
-                         settings['APNS_FEEDBACK_PORT'],
-                         settings['APNS_CERTIFICATE'])
+    return create_socket(config['APNS_FEEDBACK_HOST'],
+                         config['APNS_FEEDBACK_PORT'],
+                         config['APNS_CERTIFICATE'])
 
 
-def check_errors(sock, settings):
+def check_errors(sock, config):
     """Check socket response for errors and raise status based exception if
     found.
     """
-    timeout = settings['APNS_ERROR_TIMEOUT']
+    timeout = config['APNS_ERROR_TIMEOUT']
 
     if timeout is None:
         # Assume everything went fine.
@@ -242,7 +242,7 @@ def receive_feedback(sock):
 
 def send(token,
          alert,
-         settings,
+         config,
          identifier=0,
          expiration=None,
          priority=10,
@@ -254,8 +254,8 @@ def send(token,
                          'Expected 64 character hex string.'))
 
     payload = create_payload(alert, **options)
-    max_size = settings['APNS_MAX_NOTIFICATION_SIZE']
-    default_expiration_offset = settings['APNS_DEFAULT_EXPIRATION_OFFSET']
+    max_size = config['APNS_MAX_NOTIFICATION_SIZE']
+    default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
 
     if len(payload) > max_size:
         raise APNSDataOverflow(('Notification body cannot exceed {0} bytes'
@@ -274,26 +274,26 @@ def send(token,
     if sock:
         sock.write(frame)
     else:
-        with closing(create_push_socket(settings)) as _sock:
+        with closing(create_push_socket(config)) as _sock:
             _sock.write(frame)
-            check_errors(_sock, settings)
+            check_errors(_sock, config)
 
 
-def send_bulk(tokens, alert, settings, **options):
+def send_bulk(tokens, alert, config, payload=None, **options):
     """Send push notification to multiple devices."""
-    with closing(create_push_socket(settings)) as sock:
+    with closing(create_push_socket(config)) as sock:
         for identifier, token in enumerate(tokens):
             send(token,
                  alert,
-                 settings,
+                 config,
                  identifier=identifier,
                  sock=sock,
                  **options)
 
-        check_errors(sock, settings)
+        check_errors(sock, config)
 
 
-def get_expired_tokens(settings):
+def get_expired_tokens(config):
     """Return inactive device ids that can't be pushed to anymore."""
-    with closing(create_feedback_socket(settings)) as sock:
+    with closing(create_feedback_socket(config)) as sock:
         return receive_feedback(sock)

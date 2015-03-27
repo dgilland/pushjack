@@ -130,28 +130,28 @@ def test_apns_oversized_payload(apns, apns_sock):
         assert not patched.called
 
 
-def test_apns_settings():
-    settings = create_apns_config()
-    assert isinstance(settings, dict)
-    assert isinstance(settings, APNSConfig)
-    assert settings['APNS_HOST'] == 'gateway.push.apple.com'
-    assert settings['APNS_PORT'] == 2195
-    assert settings['APNS_FEEDBACK_HOST'] == 'feedback.push.apple.com'
-    assert settings['APNS_FEEDBACK_PORT'] == 2196
-    assert settings['APNS_CERTIFICATE'] == None
-    assert settings['APNS_ERROR_TIMEOUT'] == 0.5
-    assert settings['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
-    assert settings['APNS_MAX_NOTIFICATION_SIZE'] == 2048
+def test_apns_config():
+    config = create_apns_config()
+    assert isinstance(config, dict)
+    assert isinstance(config, APNSConfig)
+    assert config['APNS_HOST'] == 'gateway.push.apple.com'
+    assert config['APNS_PORT'] == 2195
+    assert config['APNS_FEEDBACK_HOST'] == 'feedback.push.apple.com'
+    assert config['APNS_FEEDBACK_PORT'] == 2196
+    assert config['APNS_CERTIFICATE'] == None
+    assert config['APNS_ERROR_TIMEOUT'] == 0.5
+    assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
+    assert config['APNS_MAX_NOTIFICATION_SIZE'] == 2048
 
 
-def test_apns_sandbox_settings():
-    settings = create_apns_sandbox_config()
-    assert isinstance(settings, dict)
-    assert isinstance(settings, APNSConfig)
-    assert settings['APNS_HOST'] == 'gateway.sandbox.push.apple.com'
-    assert settings['APNS_PORT'] == 2195
-    assert settings['APNS_FEEDBACK_HOST'] == 'feedback.sandbox.push.apple.com'
-    assert settings['APNS_FEEDBACK_PORT'] == 2196
-    assert settings['APNS_CERTIFICATE'] == None
-    assert settings['APNS_ERROR_TIMEOUT'] == 0.5
-    assert settings['APNS_MAX_NOTIFICATION_SIZE'] == 2048
+def test_apns_sandbox_config():
+    config = create_apns_sandbox_config()
+    assert isinstance(config, dict)
+    assert isinstance(config, APNSConfig)
+    assert config['APNS_HOST'] == 'gateway.sandbox.push.apple.com'
+    assert config['APNS_PORT'] == 2195
+    assert config['APNS_FEEDBACK_HOST'] == 'feedback.sandbox.push.apple.com'
+    assert config['APNS_FEEDBACK_PORT'] == 2196
+    assert config['APNS_CERTIFICATE'] == None
+    assert config['APNS_ERROR_TIMEOUT'] == 0.5
+    assert config['APNS_MAX_NOTIFICATION_SIZE'] == 2048

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Settings module that provides configuration classes for use with push
+"""Configuration module that provides configuration classes for use with push
 notification services.
 """
 
@@ -20,9 +20,9 @@ class Config(dict):
     """Configuration loader which acts like a dict but supports loading
     values from an object limited to ``ALL_CAPS_ATTRIBUTES``.
     """
-    def __init__(self, defaults=None):
+    def __init__(self, config=None):
         self.from_object(self)
-        self.from_dict(defaults or {})
+        self.from_dict(config or {})
 
     def from_object(self, obj):
         """Pull ``dir(obj)`` keys from `obj` and set onto ``self``."""
@@ -70,16 +70,16 @@ class APNSSandboxConfig(APNSConfig):
     APNS_FEEDBACK_HOST = 'feedback.sandbox.push.apple.com'
 
 
-def create_gcm_config(settings=None):
+def create_gcm_config(config=None):
     """Convenience method to create a GCM config."""
-    return GCMConfig(settings)
+    return GCMConfig(config)
 
 
-def create_apns_config(settings=None):
+def create_apns_config(config=None):
     """Convenience method to create an APNS config."""
-    return APNSConfig(settings)
+    return APNSConfig(config)
 
 
-def create_apns_sandbox_config(settings=None):
+def create_apns_sandbox_config(config=None):
     """Convenience method to create an APNS sandbox config."""
-    return APNSSandboxConfig(settings)
+    return APNSSandboxConfig(config)

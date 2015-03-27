@@ -83,15 +83,15 @@ def test_gcm_send_failure(gcm, gcm_failure_dispatcher):
 
 
 def test_gcm_create_dispatcher():
-    settings = {
+    config = {
         'GCM_API_KEY': '1234',
         'GCM_URL': 'http://example.com'
     }
 
-    dispatcher = create_dispatcher(settings)
+    dispatcher = create_dispatcher(config)
 
-    assert dispatcher.url == settings['GCM_URL']
-    assert dispatcher.session.auth == ('key', settings['GCM_API_KEY'])
+    assert dispatcher.url == config['GCM_URL']
+    assert dispatcher.session.auth == ('key', config['GCM_API_KEY'])
     assert dispatcher.session.headers['Content-Type'] == 'application/json'
 
 
@@ -102,7 +102,7 @@ def test_gcm_create_dispatcher():
 def test_gcm_create_dispatcher_when_sending(gcm, method):
     with mock.patch('pushjack.gcm.create_dispatcher') as patched:
         getattr(gcm, method)(['abc'], {})
-        patched.assert_called_with(gcm.settings)
+        patched.assert_called_with(gcm.config)
 
 
 @parametrize('method,tokens,data,extra,expected', [
@@ -126,10 +126,10 @@ def test_gcm_dispatcher_call(gcm, method, tokens, data, extra, expected):
         assert expected in patched.mock_calls
 
 
-def test_gcm_settings():
-    settings = create_gcm_config()
-    assert isinstance(settings, dict)
-    assert isinstance(settings, GCMConfig)
-    assert settings['GCM_API_KEY'] is None
-    assert settings['GCM_URL'] == 'https://android.googleapis.com/gcm/send'
-    assert settings['GCM_MAX_RECIPIENTS'] == 1000
+def test_gcm_config():
+    config = create_gcm_config()
+    assert isinstance(config, dict)
+    assert isinstance(config, GCMConfig)
+    assert config['GCM_API_KEY'] is None
+    assert config['GCM_URL'] == 'https://android.googleapis.com/gcm/send'
+    assert config['GCM_MAX_RECIPIENTS'] == 1000

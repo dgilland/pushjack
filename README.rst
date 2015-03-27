@@ -29,16 +29,16 @@ APNS
 
     from pushjack import APNSClient, create_apns_config
 
-    settings = create_apns_config({
+    config = create_apns_config({
         'APNS_CERTIFICATE': '<path/to/certificate.pem>'
     })
 
-    client = APNSClient(settings)
+    client = APNSClient(config)
 
     # Send to single device.
     client.send(token, alert, **options)
 
-    # Sent to multiple devices.
+    # Send to multiple devices.
     client.send_bulk(tokens, alert, **options)
 
     # Get expired tokens.
@@ -52,34 +52,34 @@ GCM
 
     from pushjack import GCMClient, create_gcm_config
 
-    settings = create_gcm_config({
+    config = create_gcm_config({
         'GCM_API_KEY': '<api key>'
     })
 
-    client = GCMClient(settings)
+    client = GCMClient(config)
 
     # Send to single device.
     client.send(token, alert, **options)
 
-    # Sent to multiple devices.
+    # Send to multiple devices.
     client.send_bulk(tokens, alert, **options)
 
 
-Settings
---------
+Config
+------
 
-The settings object for configuring a client is expected to be a ``dict`` or subclass of ``dict``:
+The config object for configuring a client is expected to be a ``dict`` or subclass of ``dict``:
 
 
 .. code-block:: python
 
-    gcm_settings = {
+    gcm_config = {
         'GCM_API_KEY': '<api key>',
         'GCM_URL': 'https://android.googleapis.com/gcm/send',
         'GCM_MAX_RECIPIENTS': 1000
     }
 
-    apns_settings = {
+    apns_config = {
         'APNS_CERTIFICATE': '<path/to/certificate.pem>',
         'APNS_HOST': 'gateway.push.apple.com',
         'APNS_PORT': 2195,

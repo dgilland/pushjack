@@ -4,7 +4,7 @@
 
 from . import apns
 from . import gcm
-from .settings import Config
+from .config import Config
 
 
 __all__ = (
@@ -18,25 +18,25 @@ class Client(object):
     #: Adapter module for push notification operations.
     adapter = None
 
-    def __init__(self, settings):
-        if isinstance(settings, type) and issubclass(settings, Config):
-            settings = Config()
+    def __init__(self, config):
+        if isinstance(config, type) and issubclass(config, Config):
+            config = Config()
 
-        self.settings = settings
+        self.config = config
 
     def send(self, registration_id, alert, **options):
         """Send push notification to single recipient."""
         self.adapter.send(registration_id,
                           alert,
-                          self.settings,
                           **options)
+                                 self.config,
 
     def send_bulk(self, registration_ids, alert, **options):
         """Send push notification to multiple recipients."""
         self.adapter.send_bulk(registration_ids,
                                alert,
-                               self.settings,
                                **options)
+                                      self.config,
 
 
 class GCMClient(Client):
@@ -51,4 +51,4 @@ class APNSClient(Client):
     adapter = apns
 
     def get_expired_tokens(self):
-        return self.adapter.get_expired_tokens(self.settings)
+        return self.adapter.get_expired_tokens(self.config)

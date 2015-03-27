@@ -21,10 +21,10 @@ __all__ = (
 
 
 class Dispatcher(object):
-    """Wrapper around requests session bound to GCM settings."""
-    def __init__(self, settings):
-        self.api_key = settings.get('GCM_API_KEY')
-        self.url = settings.get('GCM_URL')
+    """Wrapper around requests session bound to GCM config."""
+    def __init__(self, config):
+        self.api_key = config.get('GCM_API_KEY')
+        self.url = config.get('GCM_URL')
 
         self.session = requests.Session()
         self.session.auth = ('key', self.api_key)
@@ -36,9 +36,9 @@ class Dispatcher(object):
         return self.session.post(self.url, *args, **kargs)
 
 
-def create_dispatcher(settings):
+def create_dispatcher(config):
     """Return dispatcher callable for making HTTP request to GCM URL."""
-    return Dispatcher(settings)
+    return Dispatcher(config)
 
 
 def create_payload(tokens,
@@ -67,10 +67,10 @@ def create_payload(tokens,
     return json_dumps(payload)
 
 
-def send(token, data, settings, dispatcher=None, **options):
+def send(token, data, config, dispatcher=None, **options):
     """Sends a GCM notification to a single token."""
     if dispatcher is None:
-        dispatcher = create_dispatcher(settings)
+        dispatcher = create_dispatcher(config)
 
     response = dispatcher(create_payload(token, data, **options))
     results = response.json()
@@ -81,15 +81,19 @@ def send(token, data, settings, dispatcher=None, **options):
     return results
 
 
-def send_bulk(tokens, data, settings, dispatcher=None, **options):
+def send_bulk(tokens, data, config, dispatcher=None, **options):
     """Sends a GCM notification to one or more tokens."""
     if dispatcher is None:
-        dispatcher = create_dispatcher(settings)
+        dispatcher = create_dispatcher(config)
 
-    max_recipients = settings.get('GCM_MAX_RECIPIENTS')
+    max_recipients = config.get('GCM_MAX_RECIPIENTS')
 
     results = []
     for _tokens in chunk(tokens, max_recipients):
-        results.append(send(_tokens, data, settings, dispatcher, **options))
+        results.append(send(_tokens,
+                            data,
+                            config,
+                            dispatcher=dispatcher,
+                            **options))
 
     return results

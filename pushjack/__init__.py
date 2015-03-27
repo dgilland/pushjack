@@ -32,7 +32,7 @@ from .exceptions import (
     APNSUnknownError
 )
 
-from .settings import (
+from .config import (
     APNSConfig,
     APNSSandboxConfig,
     GCMConfig,
