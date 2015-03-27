@@ -106,6 +106,8 @@ def create_socket(host, port, certfile):
 
     sock = socket.socket()
 
+    # For some reason, pylint on TravisCI's Python 2.7 platform complains that
+    # ssl.PROTOCOL_TLSv1 doesn't exist. Add a disable flag to bypass this.
     # pylint: disable=no-member
     sock = ssl.wrap_socket(sock,
                            ssl_version=ssl.PROTOCOL_TLSv1,
