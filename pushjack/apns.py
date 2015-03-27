@@ -58,8 +58,9 @@ def create_payload(alert,
     if extra is None:
         extra = {}
 
-    data = {}
-    aps_data = {}
+    payload = {}
+    payload.update(extra)
+    payload['aps'] = {}
 
     if any([action_loc_key, loc_key, loc_args]):
         alert = {'body': alert} if alert else {}
@@ -74,24 +75,21 @@ def create_payload(alert,
             alert['loc-args'] = loc_args
 
     if alert is not None:
-        aps_data['alert'] = alert
+        payload['aps']['alert'] = alert
 
     if badge is not None:
-        aps_data['badge'] = badge
+        payload['aps']['badge'] = badge
 
     if sound is not None:
-        aps_data['sound'] = sound
+        payload['aps']['sound'] = sound
 
     if category is not None:
-        aps_data['category'] = category
+        payload['aps']['category'] = category
 
     if content_available:
-        aps_data['content-available'] = 1
+        payload['aps']['content-available'] = 1
 
-    data['aps'] = aps_data
-    data.update(extra)
-
-    return json_dumps(data)
+    return json_dumps(payload)
 
 
 def create_socket(host, port, certfile):
@@ -246,6 +244,7 @@ def send(token,
          identifier=0,
          expiration=None,
          priority=10,
+         payload=None,
          sock=None,
          **options):
     """Send push notification to single device."""
@@ -253,7 +252,9 @@ def send(token,
         raise APNSError(('Invalid token format. '
                          'Expected 64 character hex string.'))
 
-    payload = create_payload(alert, **options)
+    if payload is None:
+        payload = create_payload(alert, **options)
+
     max_size = config['APNS_MAX_NOTIFICATION_SIZE']
     default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
 
@@ -281,12 +282,16 @@ def send(token,
 
 def send_bulk(tokens, alert, config, payload=None, **options):
     """Send push notification to multiple devices."""
+    if payload is None:
+        payload = create_payload(alert, **options)
+
     with closing(create_push_socket(config)) as sock:
         for identifier, token in enumerate(tokens):
             send(token,
                  alert,
                  config,
                  identifier=identifier,
+                 payload=payload,
                  sock=sock,
                  **options)
 
