@@ -22,7 +22,7 @@ class Config(dict):
     """
     def __init__(self, config=None):
         self.from_object(self)
-        self.from_dict(config or {})
+        self.update(config or {})
 
     def from_object(self, obj):
         """Pull ``dir(obj)`` keys from `obj` and set onto ``self``."""
@@ -30,7 +30,7 @@ class Config(dict):
             if key.isupper():
                 self[key] = getattr(obj, key)
 
-    def from_dict(self, dct):
+    def update(self, dct):
         """Pull keys from `dct` and set onto ``self``."""
         for key, value in iteritems(dct):
             if key.isupper():
