@@ -32,8 +32,8 @@ class Dispatcher(object):
             'Content-Type': 'application/json',
         })
 
-    def __call__(self, *args, **kargs):
-        return self.session.post(self.url, *args, **kargs)
+    def __call__(self, data, **options):
+        return self.session.post(self.url, data, **options)
 
 
 def create_dispatcher(config):
@@ -72,7 +72,8 @@ def send(token, data, config, dispatcher=None, **options):
     if dispatcher is None:
         dispatcher = create_dispatcher(config)
 
-    response = dispatcher(create_payload(token, data, **options))
+    payload = create_payload(token, data, **options)
+    response = dispatcher(payload)
     results = response.json()
 
     if 'failure' in results and results.get('failure'):
