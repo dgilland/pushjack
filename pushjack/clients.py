@@ -26,17 +26,17 @@ class Client(object):
 
     def send(self, registration_id, alert, **options):
         """Send push notification to single recipient."""
-        self.adapter.send(registration_id,
-                          alert,
-                          **options)
+        return self.adapter.send(registration_id,
+                                 alert,
                                  self.config,
+                                 **options)
 
     def send_bulk(self, registration_ids, alert, **options):
         """Send push notification to multiple recipients."""
-        self.adapter.send_bulk(registration_ids,
-                               alert,
-                               **options)
+        return self.adapter.send_bulk(registration_ids,
+                                      alert,
                                       self.config,
+                                      **options)
 
 
 class GCMClient(Client):
