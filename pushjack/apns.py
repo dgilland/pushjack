@@ -242,8 +242,8 @@ def receive_feedback(sock):
                 timestamp, token_length = header_data
 
                 # Unpack format for a single value of length bytes
-                token_format = '%ss' % token_length
-                device_token = read_and_unpack(socket, token_format)
+                device_token = read_and_unpack(socket,
+                                               '{0}s'.format(token_length))
 
                 if device_token is not None:
                     # read_and_unpack() returns a tuple, but it's just one
