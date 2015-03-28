@@ -47,10 +47,15 @@ def create_payload(alert,
                    sound=None,
                    category=None,
                    content_available=None,
+                   title=None,
+                   title_loc_key=None,
+                   title_loc_args=None,
                    action_loc_key=None,
                    loc_key=None,
                    loc_args=None,
-                   extra=None):
+                   launch_image=None,
+                   extra=None,
+                   **ignore):
     """Return notification payload in JSON format."""
     if loc_args is None:
         loc_args = []
@@ -62,8 +67,23 @@ def create_payload(alert,
     payload.update(extra)
     payload['aps'] = {}
 
-    if any([action_loc_key, loc_key, loc_args]):
+    if any([title,
+            title_loc_key,
+            title_loc_args,
+            action_loc_key,
+            loc_key,
+            loc_args,
+            launch_image]):
         alert = {'body': alert} if alert else {}
+
+        if title:
+            alert['title'] = title
+
+        if title_loc_key:
+            alert['title_loc_key'] = title_loc_key
+
+        if title_loc_args:
+            alert['title_loc_args'] = title_loc_args
 
         if action_loc_key:
             alert['action-loc-key'] = action_loc_key
@@ -74,16 +94,19 @@ def create_payload(alert,
         if loc_args:
             alert['loc-args'] = loc_args
 
-    if alert is not None:
+        if launch_image:
+            alert['launch_image'] = launch_image
+
+    if alert:
         payload['aps']['alert'] = alert
 
-    if badge is not None:
+    if badge:
         payload['aps']['badge'] = badge
 
-    if sound is not None:
+    if sound:
         payload['aps']['sound'] = sound
 
-    if category is not None:
+    if category:
         payload['aps']['category'] = category
 
     if content_available:
