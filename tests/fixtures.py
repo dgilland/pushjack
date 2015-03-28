@@ -23,7 +23,9 @@ def apns():
 @pytest.fixture
 def apns_sock():
     """Return mock for APNS socket client."""
-    return mock.MagicMock()
+    sock = mock.MagicMock()
+    sock.recv = lambda n: ''
+    return sock
 
 
 @pytest.fixture
