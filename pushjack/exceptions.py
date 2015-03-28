@@ -34,7 +34,7 @@ class APNSServerError(APNSError):
                                               self.description,
                                               identifier)
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return '{0}: {1} for identifier {2}'.format(self.code,
                                                     self.description,
                                                     self.identifier)
@@ -116,9 +116,9 @@ class Raiser(object):
 
     def __call__(self, code, *args, **kargs):
         if not isinstance(code, int) and not args and not kargs:
-            raise APNSServerError(code)
+            raise APNSServerError(code)  # pragma: no cover
 
-        if code not in self.mapping:
+        if code not in self.mapping:  # pragma: no cover
             raise LookupError('No APNS exception for {0}'.format(code))
 
         raise self.mapping[code](*args, **kargs)

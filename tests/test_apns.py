@@ -9,11 +9,12 @@ from pushjack import (
     APNSDataOverflow,
     APNSConfig,
     create_apns_config,
-    create_apns_sandbox_config
+    create_apns_sandbox_config,
+    exceptions
 )
 from pushjack.utils import json_dumps
 
-from .fixtures import apns, apns_sock, parametrize
+from .fixtures import apns, apns_sock, apns_socket_factory, parametrize
 
 
 test_token = '1' * 64
@@ -203,6 +204,27 @@ def test_apns_oversized_payload(apns, apns_sock):
             apns.send(test_token, '_' * 2049, sock=apns_sock)
 
         assert not pack_frame.called
+
+
+@parametrize('code,exception', [
+    (1, exceptions.APNSProcessingError),
+    (2, exceptions.APNSMissingTokenError),
+    (3, exceptions.APNSMissingTopicError),
+    (4, exceptions.APNSMissingPayloadError),
+    (5, exceptions.APNSInvalidTokenSizeError),
+    (6, exceptions.APNSInvalidTopicSizeError),
+    (7, exceptions.APNSInvalidPayloadSizeError),
+    (8, exceptions.APNSInvalidTokenError),
+    (10, exceptions.APNSShutdownError),
+    (255, exceptions.APNSUnknownError),
+])
+def test_apns_error_handling(apns, code, exception):
+    exception_sock = apns_socket_factory(code)
+
+    with mock.patch('pushjack.apns.create_push_socket') as create_push_socket:
+        create_push_socket.return_value = exception_sock
+        with pytest.raises(exception):
+            apns.send(test_token, '')
 
 
 def test_apns_config():

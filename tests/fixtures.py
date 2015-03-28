@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import struct
+
 import pytest
 import mock
 
@@ -10,8 +12,25 @@ from pushjack import (
     create_gcm_config
 )
 
+from pushjack.apns import APNS_ERROR_RESPONSE_COMMAND
+
+
 # pytest.mark is a generator so create alias for convenience
 parametrize = pytest.mark.parametrize
+
+
+def apns_socket_factory(return_status):
+    class MagicSocket(mock.MagicMock):
+        def write(self, frame):
+            self.frame = frame
+
+    sock = mock.MagicMock()
+    sock.recv = lambda n: struct.pack('!BBI',
+                                      APNS_ERROR_RESPONSE_COMMAND,
+                                      return_status,
+                                      0)
+
+    return sock
 
 
 @pytest.fixture
