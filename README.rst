@@ -35,10 +35,27 @@ APNS
 
     client = APNSClient(config)
 
+    token = '<device token>'
+    alert = 'Hello world.'
+
     # Send to single device.
-    client.send(token, alert, **options)
+    # Keyword arguments are optional.
+    client.send(token,
+                alert,
+                badge='badge count',
+                sound='sound to play',
+                category='category',
+                content_available=True,
+                title='Title',
+                title_loc_key='t_loc_key',
+                title_loc_args='loc_args',
+                action_loc_key='a_loc_key',
+                loc_key='loc_key',
+                launch_image='path/to/image.jpg',
+                extra={'custom': 'data'})
 
     # Send to multiple devices.
+    # Accepts the same keyword arguments as send().
     client.send_bulk(tokens, alert, **options)
 
     # Get expired tokens.
@@ -58,11 +75,20 @@ GCM
 
     client = GCMClient(config)
 
+    registration_id = '<registration id>'
+    data = {'message': 'Hello world.'}
+
     # Send to single device.
-    client.send(token, alert, **options)
+    # Keyword arguments are optional.
+    client.send(registration_id,
+                data,
+                collapse_key='collapse_key',
+                delay_while_idle=True,
+                time_to_live=100)
 
     # Send to multiple devices.
-    client.send_bulk(tokens, alert, **options)
+    # Accepts the same keyword arguments as send().
+    client.send_bulk(tokens, data, **options)
 
 
 Config
