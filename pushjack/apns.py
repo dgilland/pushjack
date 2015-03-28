@@ -304,8 +304,6 @@ def send(token,
             _sock.write(frame)
             check_errors(_sock, config)
 
-    return payload
-
 
 def send_bulk(tokens, alert, config, payload=None, **options):
     """Send push notification to multiple devices."""
@@ -324,8 +322,6 @@ def send_bulk(tokens, alert, config, payload=None, **options):
                  **options)
 
         check_errors(sock, config)
-
-    return payload
 
 
 def get_expired_tokens(config):
