@@ -181,11 +181,10 @@ def check_errors(sock, config):
 
             if status != 0:
                 raise_apns_server_error(status, identifier)
-
-    except socket.timeout:
+    except socket.timeout:  # pragma: no cover
         # py3, See http://bugs.python.org/issue10272
         pass
-    except ssl.SSLError as ex:
+    except ssl.SSLError as ex:  # pragma: no cover
         # py2
         if 'timed out' not in ex.message:
             raise
@@ -252,10 +251,10 @@ def receive_feedback(sock):
                     expired_tokens.append((token, timestamp))
             else:
                 has_data = False
-        except socket.timeout:
+        except socket.timeout:  # pragma: no cover
             # py3, see http://bugs.python.org/issue10272
             pass
-        except ssl.SSLError as ex:
+        except ssl.SSLError as ex:  # pragma: no cover
             # py2
             if 'timed out' not in ex.message:
                 raise
