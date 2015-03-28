@@ -25,6 +25,9 @@ Whether using ``APNS`` or ``GCM``, pushjack provides a common API interface for 
 APNS
 ----
 
+Using the ``APNSClient`` class:
+
+
 .. code-block:: python
 
     from pushjack import APNSClient, create_apns_config
@@ -62,8 +65,23 @@ APNS
     expired = client.get_expired_tokens()
 
 
+Using the APNS module directly:
+
+
+.. code-block:: python
+
+    from pushjack import apns
+
+    # Call signature is the same as APNSClient.
+    apns.send(token, alert, **options)
+    apns.send_bulk(token, alert, **options)
+
+
 GCM
 ---
+
+Using the ``GCMClient`` class:
+
 
 .. code-block:: python
 
@@ -89,6 +107,18 @@ GCM
     # Send to multiple devices.
     # Accepts the same keyword arguments as send().
     client.send_bulk(tokens, data, **options)
+
+
+Using the GCM module directly:
+
+
+.. code-block:: python
+
+    from pushjack import gcm
+
+    # Call signature is the same as GCMClient.
+    gcm.send(token, alert, **options)
+    gcm.send_bulk(token, alert, **options)
 
 
 Config
