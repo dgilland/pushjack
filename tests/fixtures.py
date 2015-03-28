@@ -29,7 +29,7 @@ def apns_sock():
 @pytest.fixture
 def gcm():
     """Return GCM client."""
-    return GCMClient(create_gcm_config())
+    return GCMClient(create_gcm_config({'GCM_API_KEY': '1234'}))
 
 
 @pytest.fixture

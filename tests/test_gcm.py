@@ -82,6 +82,12 @@ def test_gcm_send_failure(gcm, gcm_failure_dispatcher):
         gcm.send('abc', {}, dispatcher=gcm_failure_dispatcher)
 
 
+def test_gcm_invalid_api_key(gcm):
+    gcm.config['GCM_API_KEY'] = None
+    with pytest.raises(GCMError) as exc_info:
+        gcm.send('abc', {})
+
+
 def test_gcm_create_dispatcher():
     config = {
         'GCM_API_KEY': '1234',

@@ -69,6 +69,9 @@ def create_payload(tokens,
 
 def send(token, data, config, dispatcher=None, **options):
     """Sends a GCM notification to a single token."""
+    if not config['GCM_API_KEY']:
+        raise GCMError('Missing GCM API key. Cannot send notifications.')
+
     if dispatcher is None:
         dispatcher = create_dispatcher(config)
 
