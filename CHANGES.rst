@@ -4,6 +4,12 @@ Changelog
 =========
 
 
+v0.2.1 (2015-03-28)
+-------------------
+
+- Fix incorrect variable reference in ``apns.receive_feedback``.
+
+
 v0.2.0 (2015-03-28)
 -------------------
 
