@@ -6,7 +6,7 @@ import json
 import pytest
 
 from pushjack import GCMClient, GCMError, GCMConfig, create_gcm_config
-from pushjack.gcm import create_dispatcher
+from pushjack.gcm import Dispatcher
 from pushjack.utils import json_dumps
 
 from .fixtures import (
@@ -94,7 +94,7 @@ def test_gcm_create_dispatcher():
         'GCM_URL': 'http://example.com'
     }
 
-    dispatcher = create_dispatcher(config)
+    dispatcher = Dispatcher(config)
 
     assert dispatcher.url == config['GCM_URL']
     assert dispatcher.session.auth == ('key', config['GCM_API_KEY'])
@@ -106,9 +106,9 @@ def test_gcm_create_dispatcher():
     'send_bulk'
 ])
 def test_gcm_create_dispatcher_when_sending(gcm, method):
-    with mock.patch('pushjack.gcm.create_dispatcher') as patched:
+    with mock.patch('pushjack.gcm.Dispatcher') as dispatcher:
         getattr(gcm, method)(['abc'], {})
-        patched.assert_called_with(gcm.config)
+        dispatcher.assert_called_with(gcm.config)
 
 
 @parametrize('method,tokens,data,extra,expected', [
@@ -126,10 +126,10 @@ def test_gcm_create_dispatcher_when_sending(gcm, method):
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
 def test_gcm_dispatcher_call(gcm, method, tokens, data, extra, expected):
-    with mock.patch('requests.Session') as patched:
+    with mock.patch('requests.Session') as Session:
         getattr(gcm, method)(tokens, data, **extra)
 
-        assert expected in patched.mock_calls
+        assert expected in Session.mock_calls
 
 
 def test_gcm_config():

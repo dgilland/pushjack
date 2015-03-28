@@ -36,11 +36,6 @@ class Dispatcher(object):
         return self.session.post(self.url, data, **options)
 
 
-def create_dispatcher(config):
-    """Return dispatcher callable for making HTTP request to GCM URL."""
-    return Dispatcher(config)
-
-
 def create_payload(tokens,
                    data,
                    collapse_key=None,
@@ -73,7 +68,7 @@ def send(token, data, config, dispatcher=None, **options):
         raise GCMError('Missing GCM API key. Cannot send notifications.')
 
     if dispatcher is None:
-        dispatcher = create_dispatcher(config)
+        dispatcher = Dispatcher(config)
 
     payload = create_payload(token, data, **options)
     response = dispatcher(payload)
@@ -88,7 +83,7 @@ def send(token, data, config, dispatcher=None, **options):
 def send_bulk(tokens, data, config, dispatcher=None, **options):
     """Sends a GCM notification to one or more tokens."""
     if dispatcher is None:
-        dispatcher = create_dispatcher(config)
+        dispatcher = Dispatcher(config)
 
     max_recipients = config.get('GCM_MAX_RECIPIENTS')
 
