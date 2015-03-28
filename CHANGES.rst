@@ -4,7 +4,7 @@ Changelog
 =========
 
 
-vx.x.x (xxxx-xx-xx)
+v0.2.0 (2015-03-28)
 -------------------
 
 - Fix handling of ``config`` in clients when ``config`` is a class object and subclass of ``Config``.
