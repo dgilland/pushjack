@@ -4,6 +4,14 @@ Changelog
 =========
 
 
+vx.x.x (xxxx-xx-xx)
+-------------------
+
+- Fix handling of ``config`` in clients when ``config`` is a class object and subclass of ``Config``.
+- Make ``apns.send/send_bulk`` accept additional ``alert`` fields: ``title``, ``title-loc``, ``title-loc-args``, and ``launch-image``.
+- Make ``gcm.send/send_bulk`` raise a ``GCMError`` exception if ``GCM_API_KEY`` is not set.
+
+
 v0.1.0 (2015-03-26)
 -------------------
 
