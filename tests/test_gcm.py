@@ -133,3 +133,12 @@ def test_gcm_config():
     assert config['GCM_API_KEY'] is None
     assert config['GCM_URL'] == 'https://android.googleapis.com/gcm/send'
     assert config['GCM_MAX_RECIPIENTS'] == 1000
+
+
+def test_gcm_client_config_class():
+    class TestGCMConfig(GCMConfig):
+        GCM_API_KEY = 'api_key'
+
+    client = GCMClient(TestGCMConfig)
+
+    assert client.config['GCM_API_KEY'] == TestGCMConfig.GCM_API_KEY

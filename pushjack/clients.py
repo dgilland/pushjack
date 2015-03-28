@@ -20,7 +20,7 @@ class Client(object):
 
     def __init__(self, config):
         if isinstance(config, type) and issubclass(config, Config):
-            config = Config()
+            config = config()
 
         self.config = config
 

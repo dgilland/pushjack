@@ -155,3 +155,12 @@ def test_apns_sandbox_config():
     assert config['APNS_CERTIFICATE'] == None
     assert config['APNS_ERROR_TIMEOUT'] == 0.5
     assert config['APNS_MAX_NOTIFICATION_SIZE'] == 2048
+
+
+def test_apns_client_config_class():
+    class TestAPNSConfig(APNSConfig):
+        APNS_CERTIFICATE = 'certificate.pem'
+
+    client = APNSClient(TestAPNSConfig)
+
+    assert client.config['APNS_CERTIFICATE'] == TestAPNSConfig.APNS_CERTIFICATE
