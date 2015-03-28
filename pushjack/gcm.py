@@ -39,24 +39,27 @@ class Dispatcher(object):
 def create_payload(tokens,
                    data,
                    collapse_key=None,
-                   delay_while_idle=False,
-                   time_to_live=0):
+                   delay_while_idle=None,
+                   time_to_live=None):
     """Return notification payload in JSON format."""
     if not isinstance(tokens, (list, tuple)):
         tokens = [tokens]
 
     payload = {'registration_ids': tokens}
 
+    if not isinstance(data, dict):
+        data = {'message': data}
+
     if data is not None:
         payload['data'] = data
 
-    if collapse_key:
+    if collapse_key is not None:
         payload['collapse_key'] = collapse_key
 
-    if delay_while_idle:
+    if delay_while_idle is not None:
         payload['delay_while_idle'] = delay_while_idle
 
-    if time_to_live:
+    if time_to_live is not None:
         payload['time_to_live'] = time_to_live
 
     return json_dumps(payload)
