@@ -118,7 +118,7 @@ def create_payload(alert,
 def create_socket(host, port, certfile):
     """Create a socket connection to the APNS server."""
     if not certfile:
-        raise APNSError('Missing certfile. Cannot send notifications.')
+        raise APNSError('Missing certificate file. Cannot send notifications.')
 
     try:
         with open(certfile, 'r') as f:
