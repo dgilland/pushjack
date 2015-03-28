@@ -20,7 +20,7 @@ from .fixtures import (
 
 
 @parametrize('tokens,data,extra,expected', [
-    ('abc', {'message': 'Hello world'}, {},
+    ('abc', 'Hello world', {},
      {'registration_ids': ['abc'],
       'data': {'message': 'Hello world'}}),
     ('abc', {'message': 'Hello world'}, {'delay_while_idle': True,
@@ -49,7 +49,7 @@ def test_gcm_send(gcm, gcm_dispatcher, tokens, data, extra, expected):
 
 
 @parametrize('tokens,data,extra,expected', [
-    (['abc', 'def', 'ghi'], {'message': 'Hello world'}, {},
+    (['abc', 'def', 'ghi'], 'Hello world', {},
      {'registration_ids': ['abc', 'def', 'ghi'],
       'data': {'message': 'Hello world'}}),
     (['abc', 'def', 'ghi'],
