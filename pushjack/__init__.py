@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Push notification module.
+"""Pushjack module.
 """
 
 from .__meta__ import (
