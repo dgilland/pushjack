@@ -31,8 +31,8 @@ GCM
     :members:
 
 
-Settings
-========
+Config
+======
 
-.. automodule:: pushjack.settings
+.. automodule:: pushjack.config
     :members:
