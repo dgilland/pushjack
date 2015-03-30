@@ -127,17 +127,17 @@ def create_socket(host, port, certfile):
         raise APNSError(('The certfile at {0} is not readable: {1}'
                         .format(certfile, ex)))
 
-    sock = socket.socket()
+    connection = socket.socket()
 
     # For some reason, pylint on TravisCI's Python 2.7 platform complains that
     # ssl.PROTOCOL_TLSv1 doesn't exist. Add a disable flag to bypass this.
     # pylint: disable=no-member
-    sock = ssl.wrap_socket(sock,
-                           ssl_version=ssl.PROTOCOL_TLSv1,
-                           certfile=certfile)
-    sock.connect((host, port))
+    connection = ssl.wrap_socket(connection,
+                                 ssl_version=ssl.PROTOCOL_TLSv1,
+                                 certfile=certfile)
+    connection.connect((host, port))
 
-    return sock
+    return connection
 
 
 def create_push_socket(config):
@@ -154,7 +154,7 @@ def create_feedback_socket(config):
                          config['APNS_CERTIFICATE'])
 
 
-def check_errors(sock, config):
+def check_errors(connection, config):
     """Check socket response for errors and raise status based exception if
     found.
     """
@@ -164,11 +164,11 @@ def check_errors(sock, config):
         # Assume everything went fine.
         return
 
-    original_timeout = sock.gettimeout()
+    original_timeout = connection.gettimeout()
 
     try:
-        sock.settimeout(timeout)
-        data = sock.recv(6)
+        connection.settimeout(timeout)
+        data = connection.recv(6)
 
         if data:
             command, status, identifier = struct.unpack("!BBI", data)
@@ -189,7 +189,7 @@ def check_errors(sock, config):
         if 'timed out' not in ex.message:
             raise
     finally:
-        sock.settimeout(original_timeout)
+        connection.settimeout(original_timeout)
 
 
 def pack_frame(token, payload, identifier, expiration, priority):
@@ -213,10 +213,10 @@ def pack_frame(token, payload, identifier, expiration, priority):
     return frame
 
 
-def read_and_unpack(sock, data_format):
+def read_and_unpack(connection, data_format):
     """Unpack and return socket frame."""
     length = struct.calcsize(data_format)
-    data = sock.recv(length)
+    data = connection.recv(length)
 
     if data:
         return struct.unpack_from(data_format, data, 0)
@@ -224,7 +224,7 @@ def read_and_unpack(sock, data_format):
         return None
 
 
-def receive_feedback(sock):
+def receive_feedback(connection):
     """Return expired tokens from feedback server."""
     expired_tokens = []
 
@@ -235,13 +235,13 @@ def receive_feedback(sock):
     while has_data:
         try:
             # Read the header tuple.
-            header_data = read_and_unpack(sock, header_format)
+            header_data = read_and_unpack(connection, header_format)
 
             if header_data is not None:
                 timestamp, token_length = header_data
 
                 # Unpack format for a single value of length bytes
-                device_token = read_and_unpack(sock,
+                device_token = read_and_unpack(connection,
                                                '{0}s'.format(token_length))
 
                 if device_token is not None:
@@ -267,7 +267,7 @@ def send(token,
          expiration=None,
          priority=10,
          payload=None,
-         sock=None,
+         connection=None,
          **options):
     """Send push notification to single device."""
     if not is_valid_token(token):
@@ -294,12 +294,12 @@ def send(token,
                        expiration_time,
                        priority)
 
-    if sock:
-        sock.write(frame)
+    if connection:
+        connection.write(frame)
     else:
-        with closing(create_push_socket(config)) as _sock:
-            _sock.write(frame)
-            check_errors(_sock, config)
+        with closing(create_push_socket(config)) as _connection:
+            _connection.write(frame)
+            check_errors(_connection, config)
 
 
 def send_bulk(tokens, alert, config, payload=None, **options):
@@ -308,20 +308,20 @@ def send_bulk(tokens, alert, config, payload=None, **options):
         # Reuse payload since it's identical for each send.
         payload = create_payload(alert, **options)
 
-    with closing(create_push_socket(config)) as sock:
+    with closing(create_push_socket(config)) as connection:
         for identifier, token in enumerate(tokens):
             send(token,
                  alert,
                  config,
                  identifier=identifier,
                  payload=payload,
-                 sock=sock,
+                 connection=connection,
                  **options)
 
-        check_errors(sock, config)
+        check_errors(connection, config)
 
 
 def get_expired_tokens(config):
     """Return inactive device ids that can't be pushed to anymore."""
-    with closing(create_feedback_socket(config)) as sock:
-        return receive_feedback(sock)
+    with closing(create_feedback_socket(config)) as connection:
+        return receive_feedback(connection)
