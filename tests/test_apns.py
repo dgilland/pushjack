@@ -251,6 +251,7 @@ def test_apns_sandbox_config():
     assert config['APNS_FEEDBACK_PORT'] == 2196
     assert config['APNS_CERTIFICATE'] == None
     assert config['APNS_ERROR_TIMEOUT'] == 0.5
+    assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
     assert config['APNS_MAX_NOTIFICATION_SIZE'] == 2048
 
 
