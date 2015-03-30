@@ -70,12 +70,12 @@ def gcm_failure_response():
 
 
 @pytest.fixture
-def gcm_dispatcher(gcm_response):
-    """Return mock for GCM dispatcher function."""
+def gcm_request(gcm_response):
+    """Return mock for GCM request function."""
     return mock.MagicMock(return_value=gcm_response)
 
 
 @pytest.fixture
-def gcm_failure_dispatcher(gcm_failure_response):
-    """Return mock for GCM dispatcher function that returns failure."""
+def gcm_failure_request(gcm_failure_response):
+    """Return mock for GCM request function that returns failure."""
     return mock.MagicMock(return_value=gcm_failure_response)

@@ -20,7 +20,7 @@ __all__ = (
 )
 
 
-class Dispatcher(object):
+class Request(object):
     """Wrapper around requests session bound to GCM config."""
     def __init__(self, config):
         self.api_key = config.get('GCM_API_KEY')
@@ -36,16 +36,16 @@ class Dispatcher(object):
         return self.session.post(self.url, data, **options)
 
 
-def create_payload(tokens,
+def create_payload(registration_ids,
                    data,
                    collapse_key=None,
                    delay_while_idle=None,
                    time_to_live=None):
     """Return notification payload in JSON format."""
-    if not isinstance(tokens, (list, tuple)):
-        tokens = [tokens]
+    if not isinstance(registration_ids, (list, tuple)):
+        registration_ids = [registration_ids]
 
-    payload = {'registration_ids': tokens}
+    payload = {'registration_ids': registration_ids}
 
     if not isinstance(data, dict):
         data = {'message': data}
@@ -65,16 +65,16 @@ def create_payload(tokens,
     return json_dumps(payload)
 
 
-def send(token, data, config, dispatcher=None, **options):
     """Sends a GCM notification to a single token."""
+def send(registration_id, data, config, request=None, **options):
     if not config['GCM_API_KEY']:
         raise GCMError('Missing GCM API key. Cannot send notifications.')
 
-    if dispatcher is None:
-        dispatcher = Dispatcher(config)
+    if request is None:
+        request = Request(config)
 
-    payload = create_payload(token, data, **options)
-    response = dispatcher(payload)
+    payload = create_payload(registration_id, data, **options)
+    response = request(payload)
     results = response.json()
 
     if 'failure' in results and results.get('failure'):
@@ -83,19 +83,19 @@ def send(token, data, config, dispatcher=None, **options):
     return results
 
 
-def send_bulk(tokens, data, config, dispatcher=None, **options):
     """Sends a GCM notification to one or more tokens."""
-    if dispatcher is None:
-        dispatcher = Dispatcher(config)
+def send_bulk(registration_ids, data, config, request=None, **options):
+    if request is None:
+        request = Request(config)
 
     max_recipients = config.get('GCM_MAX_RECIPIENTS')
 
     results = []
-    for _tokens in chunk(tokens, max_recipients):
-        results.append(send(_tokens,
+    for _registration_ids in chunk(registration_ids, max_recipients):
+        results.append(send(_registration_ids,
                             data,
                             config,
-                            dispatcher=dispatcher,
+                            request=request,
                             **options))
 
     return results

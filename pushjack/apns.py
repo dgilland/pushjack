@@ -261,7 +261,7 @@ def receive_feedback(connection):
 
 
 def send(token,
-         alert,
+         data,
          config,
          identifier=0,
          expiration=None,
@@ -275,7 +275,7 @@ def send(token,
                          'Expected 64 character hex string.'))
 
     if payload is None:
-        payload = create_payload(alert, **options)
+        payload = create_payload(data, **options)
 
     max_size = config['APNS_MAX_NOTIFICATION_SIZE']
     default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
@@ -302,16 +302,16 @@ def send(token,
             check_errors(_connection, config)
 
 
-def send_bulk(tokens, alert, config, payload=None, **options):
     """Send push notification to multiple devices."""
+def send_bulk(tokens, data, config, payload=None, **options):
     if payload is None:
         # Reuse payload since it's identical for each send.
-        payload = create_payload(alert, **options)
+        payload = create_payload(data, **options)
 
     with closing(create_push_socket(config)) as connection:
         for identifier, token in enumerate(tokens):
             send(token,
-                 alert,
+                 data,
                  config,
                  identifier=identifier,
                  payload=payload,

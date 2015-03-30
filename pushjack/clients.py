@@ -24,17 +24,16 @@ class Client(object):
 
         self.config = config
 
-    def send(self, registration_id, alert, **options):
-        """Send push notification to single recipient."""
+    def send(self, registration_id, data, **options):
         return self.adapter.send(registration_id,
-                                 alert,
+                                 data,
                                  self.config,
                                  **options)
 
-    def send_bulk(self, registration_ids, alert, **options):
         """Send push notification to multiple recipients."""
+    def send_bulk(self, registration_ids, data, **options):
         return self.adapter.send_bulk(registration_ids,
-                                      alert,
+                                      data,
                                       self.config,
                                       **options)
 

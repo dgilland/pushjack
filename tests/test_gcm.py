@@ -6,15 +6,15 @@ import json
 import pytest
 
 from pushjack import GCMClient, GCMError, GCMConfig, create_gcm_config
-from pushjack.gcm import Dispatcher
+from pushjack.gcm import Request
 from pushjack.utils import json_dumps
 
 from .fixtures import (
     gcm,
     gcm_response,
     gcm_failure_response,
-    gcm_dispatcher,
-    gcm_failure_dispatcher,
+    gcm_request,
+    gcm_failure_request,
     parametrize
 )
 
@@ -43,9 +43,9 @@ from .fixtures import (
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send(gcm, gcm_dispatcher, tokens, data, extra, expected):
-    gcm.send(tokens, data, dispatcher=gcm_dispatcher, **extra)
-    gcm_dispatcher.assert_called_once_with(json_dumps(expected))
+def test_gcm_send(gcm, gcm_request, tokens, data, extra, expected):
+    gcm.send(tokens, data, request=gcm_request, **extra)
+    gcm_request.assert_called_once_with(json_dumps(expected))
 
 
 @parametrize('tokens,data,extra,expected', [
@@ -72,14 +72,14 @@ def test_gcm_send(gcm, gcm_dispatcher, tokens, data, extra, expected):
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send_bulk(gcm, gcm_dispatcher, tokens, data, extra, expected):
-    gcm.send_bulk(tokens, data, dispatcher=gcm_dispatcher, **extra)
-    gcm_dispatcher.assert_called_once_with(json_dumps(expected))
+def test_gcm_send_bulk(gcm, gcm_request, tokens, data, extra, expected):
+    gcm.send_bulk(tokens, data, request=gcm_request, **extra)
+    gcm_request.assert_called_once_with(json_dumps(expected))
 
 
-def test_gcm_send_failure(gcm, gcm_failure_dispatcher):
+def test_gcm_send_failure(gcm, gcm_failure_request):
     with pytest.raises(GCMError):
-        gcm.send('abc', {}, dispatcher=gcm_failure_dispatcher)
+        gcm.send('abc', {}, request=gcm_failure_request)
 
 
 def test_gcm_invalid_api_key(gcm):
@@ -88,27 +88,27 @@ def test_gcm_invalid_api_key(gcm):
         gcm.send('abc', {})
 
 
-def test_gcm_create_dispatcher():
+def test_gcm_create_request():
     config = {
         'GCM_API_KEY': '1234',
         'GCM_URL': 'http://example.com'
     }
 
-    dispatcher = Dispatcher(config)
+    request = Request(config)
 
-    assert dispatcher.url == config['GCM_URL']
-    assert dispatcher.session.auth == ('key', config['GCM_API_KEY'])
-    assert dispatcher.session.headers['Content-Type'] == 'application/json'
+    assert request.url == config['GCM_URL']
+    assert request.session.auth == ('key', config['GCM_API_KEY'])
+    assert request.session.headers['Content-Type'] == 'application/json'
 
 
 @parametrize('method', [
     'send',
     'send_bulk'
 ])
-def test_gcm_create_dispatcher_when_sending(gcm, method):
-    with mock.patch('pushjack.gcm.Dispatcher') as dispatcher:
+def test_gcm_create_request_when_sending(gcm, method):
+    with mock.patch('pushjack.gcm.Request') as request:
         getattr(gcm, method)(['abc'], {})
-        dispatcher.assert_called_with(gcm.config)
+        request.assert_called_with(gcm.config)
 
 
 @parametrize('method,tokens,data,extra,expected', [
@@ -125,7 +125,7 @@ def test_gcm_create_dispatcher_when_sending(gcm, method):
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
-def test_gcm_dispatcher_call(gcm, method, tokens, data, extra, expected):
+def test_gcm_request_call(gcm, method, tokens, data, extra, expected):
     with mock.patch('requests.Session') as Session:
         getattr(gcm, method)(tokens, data, **extra)
 
