@@ -6,7 +6,7 @@ import pytest
 from pushjack import (
     APNSClient,
     APNSError,
-    APNSDataOverflow,
+    APNSInvalidPayloadSizeError,
     APNSConfig,
     create_apns_config,
     create_apns_sandbox_config,
@@ -198,10 +198,10 @@ def test_apns_socket_write(apns, apns_sock):
     assert expected in apns_sock.mock_calls
 
 
-def test_apns_oversized_payload(apns, apns_sock):
+def test_apns_invalid_payload_size(apns, apns_sock):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-        with pytest.raises(APNSDataOverflow):
-            apns.send(test_token, '_' * 2049, sock=apns_sock)
+        with pytest.raises(APNSInvalidPayloadSizeError):
+            apns.send(test_token, '_' * 2049, connection=apns_sock)
 
         assert not pack_frame.called
 

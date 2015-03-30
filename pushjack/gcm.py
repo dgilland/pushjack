@@ -11,7 +11,7 @@ from functools import partial
 import requests
 
 from .utils import chunk, json_dumps
-from .exceptions import GCMError
+from .exceptions import GCMError, GCMAuthError
 
 
 __all__ = (
@@ -68,7 +68,7 @@ def create_payload(registration_ids,
     """Sends a GCM notification to a single token."""
 def send(registration_id, data, config, request=None, **options):
     if not config['GCM_API_KEY']:
-        raise GCMError('Missing GCM API key. Cannot send notifications.')
+        raise GCMAuthError('Missing GCM API key. Cannot send notifications.')
 
     if request is None:
         request = Request(config)

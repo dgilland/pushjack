@@ -17,9 +17,10 @@ from .clients import APNSClient, GCMClient
 from .exceptions import (
     NotificationError,
     GCMError,
+    GCMAuthError,
     APNSError,
+    APNSAuthError,
     APNSServerError,
-    APNSDataOverflow,
     APNSProcessingError,
     APNSMissingTokenError,
     APNSMissingTopicError,

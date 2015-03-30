@@ -14,7 +14,13 @@ import struct
 import time
 
 from .utils import json_dumps
-from .exceptions import APNSError, APNSDataOverflow, raise_apns_server_error
+from .exceptions import (
+    APNSError,
+    APNSAuthError,
+    APNSInvalidTokenError,
+    APNSInvalidPayloadSizeError,
+    raise_apns_server_error
+)
 
 
 __all__ = (
@@ -118,14 +124,15 @@ def create_payload(alert,
 def create_socket(host, port, certfile):
     """Create a socket connection to the APNS server."""
     if not certfile:
-        raise APNSError('Missing certificate file. Cannot send notifications.')
+        raise APNSAuthError(('Missing certificate file. '
+                             'Cannot send notifications.'))
 
     try:
         with open(certfile, 'r') as f:
             f.read()
     except Exception as ex:
-        raise APNSError(('The certfile at {0} is not readable: {1}'
-                        .format(certfile, ex)))
+        raise APNSAuthError(('The certfile at {0} is not readable: {1}'
+                             .format(certfile, ex)))
 
     connection = socket.socket()
 
@@ -271,8 +278,8 @@ def send(token,
          **options):
     """Send push notification to single device."""
     if not is_valid_token(token):
-        raise APNSError(('Invalid token format. '
-                         'Expected 64 character hex string.'))
+        raise APNSInvalidTokenError(('Invalid token format. '
+                                     'Expected 64 character hex string.'))
 
     if payload is None:
         payload = create_payload(data, **options)
@@ -281,8 +288,9 @@ def send(token,
     default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
 
     if len(payload) > max_size:
-        raise APNSDataOverflow(('Notification body cannot exceed {0} bytes'
-                                .format(max_size)))
+        raise APNSInvalidPayloadSizeError(('Notification body cannot exceed '
+                                           '{0} bytes'
+                                           .format(max_size)))
 
     # If expiration isn't specified use default offset from now.
     expiration_time = (expiration if expiration is not None

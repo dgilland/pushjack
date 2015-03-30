@@ -16,13 +16,18 @@ class GCMError(NotificationError):
     pass
 
 
+class GCMAuthError(GCMError):
+    """Exception for error with GCM API key."""
+    pass
+
+
 class APNSError(NotificationError):
     """Base exception for APNS errors."""
     pass
 
 
-class APNSDataOverflow(APNSError):
-    """Exception for APNS data overflow error."""
+class APNSAuthError(APNSError):
+    """Exception with APNS certificate."""
     pass
 
 
