@@ -31,9 +31,6 @@ __all__ = (
 # Apple protocol says command is always 8. See http://goo.gl/ENUjXg
 APNS_ERROR_RESPONSE_COMMAND = 8
 
-# 1 month
-DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30
-
 
 def is_valid_token(token):
     """Check if token is valid format."""
