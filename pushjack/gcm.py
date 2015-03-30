@@ -3,7 +3,8 @@
 
 Documentation is available on the Android Developer website:
 
-https://developer.android.com/google/gcm/index.html
+- https://developer.android.com/google/gcm/index.html
+- https://developer.android.com/google/gcm/server-ref.html
 """
 
 from functools import partial
@@ -65,8 +66,38 @@ def create_payload(registration_ids,
     return json_dumps(payload)
 
 
-    """Sends a GCM notification to a single token."""
 def send(registration_id, data, config, request=None, **options):
+    """Sends a GCM notification to a single registration ID.
+
+    Args:
+        registration_id (str): GCM device registration ID.
+        data (str|dict): Alert message or dictionary.
+        config (dict): Configuration dictionary containing APNS configuration
+            values. See :mod:`pushjack.config` for more details.
+        request (callable, optional): Callable object that makes POST request
+            to GCM service. Defaults to ``None`` which creates its own request
+            callable.
+
+    Keyword Args:
+        collapse_key (str, optional): Identifier for a group of messages that
+            can be collapsed so that only the last message gets sent when
+            delivery can be resumed. Defaults to ``None``.
+        delay_while_idle (bool, optional): If ``True`` indicates that the
+            message should not be sent until the device becomes active.
+        time_to_live (int, optional): How long (in seconds) the message should
+            be kept in GCM storage if the device is offline. The maximum time
+            to live supported is 4 weeks. Defaults to ``None`` which uses the
+            GCM default of 4 weeks.
+
+    Returns:
+        dict: Response from GCM server.
+
+    Raises:
+        GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
+        GCMError: If GCM server response indicates failure.
+
+    .. versionadded:: 0.0.1
+    """
     if not config['GCM_API_KEY']:
         raise GCMAuthError('Missing GCM API key. Cannot send notifications.')
 
@@ -83,8 +114,27 @@ def send(registration_id, data, config, request=None, **options):
     return results
 
 
-    """Sends a GCM notification to one or more tokens."""
 def send_bulk(registration_ids, data, config, request=None, **options):
+    """Sends a GCM notification to one or more registration_ids.
+
+    Args:
+        registration_ids (list): List of GCM registration IDs.
+        data (str|dict): Alert message or dictionary.
+        config (dict): Configuration dictionary containing APNS configuration
+            values. See :mod:`pushjack.config` for more details.
+        request (callable, optional): Callable object that makes POST request
+            to GCM service. Defaults to ``None`` which creates its own request
+            callable.
+
+    Returns:
+        list: List of chunked GCM server responses grouped by
+            ``GCM_MAX_RECIPIENTS``.
+
+    See Also:
+        See :func:`send` for a full listing of keyword arguments.
+
+    .. versionadded:: 0.0.1
+    """
     if request is None:
         request = Request(config)
 

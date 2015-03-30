@@ -9,7 +9,7 @@ Clients
 =======
 
 .. autoclass:: pushjack.clients.APNSClient
-    :members: send, send_bulk
+    :members: send, send_bulk, get_expired_tokens
     :exclude-members: adapter
 
 .. autoclass:: pushjack.clients.GCMClient
@@ -31,8 +31,8 @@ GCM
     :members:
 
 
-Config
-======
+Configuration
+=============
 
 .. automodule:: pushjack.config
     :members:

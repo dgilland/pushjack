@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """Apple Push Notification Service
 
-Documentation is available on the iOS Developer Library:
-
-http://goo.gl/wFVr2S
+Documentation is available on the iOS Developer Library: http://goo.gl/wFVr2S
 """
 
 from binascii import unhexlify
@@ -26,6 +24,7 @@ from .exceptions import (
 __all__ = (
     'send',
     'send_bulk',
+    'get_expired_tokens',
 )
 
 
@@ -276,7 +275,76 @@ def send(token,
          payload=None,
          connection=None,
          **options):
-    """Send push notification to single device."""
+    """Send push notification to single device.
+
+    Args:
+        token (str): APNS device token. Expected to be a 64 character hex
+            string.
+        data (str|dict): Alert message or dictionary.
+        config (dict): Configuration dictionary containing APNS configuration
+            values. See :mod:`pushjack.config` for more details.
+        identifier (int, optional): Message identifier. Defaults to ``0``.
+        expiration (int, optional): Expiration time of message in seconds
+            offset from now. Defaults to ``None`` which uses
+            ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
+        priority (int, optional): The alert’s priority. Provide one of the
+            following values:
+
+            - 10
+                The push message is sent immediately. The remote notification
+                must trigger an alert, sound, or badge on the device. It is an
+                error to use this priority for a push that contains only the
+                ``content_available`` key.
+            - 5
+                The push message is sent at a time that conserves power on the
+                device receiving it.
+
+            Defaults to ``10``.
+        payload (str, optional): Directly send alert payload as JSON formatted
+            string. If set then alert arguments are ignored and `payload` is
+            used directly. Defaults to ``None`` which results in `payload`
+            being constructed from passed in arguments.
+        connection (socket, optional): Provide outside socket connection to
+            APNS server. Socket is assumed to have been preconfigured and ready
+            to use. When `connection` is provided, no error checking is done;
+            it's assumed that the connection provider will handle that
+            themselves.
+
+    Keyword Args:
+        badge (int, optional): Badge number count for alert. Defaults to
+            ``None``.
+        sound (str, optional): Name of the sound file to play for alert.
+            Defaults to ``None``.
+        category (str, optional): Name of category. Defaults to ``None``.
+        content_available (bool, optional): If ``True``, indicate that new
+            content is available. Defaults to ``None``.
+        title (str, optional): Alert title.
+        title_loc_key (str, optional): The key to a title string in the
+            ``Localizable.strings`` file for the current localization.
+        title_loc_args (list, optional): List of string values to appear in
+            place of the format specifiers in `title_loc_key`.
+        action_loc_key (str, optional): Display an alert that includes the
+            ``Close`` and ``View`` buttons. The string is used as a key to get
+            a localized string in the current localization to use for the right
+            button’s title instead of ``“View”``.
+        loc_key (str, optional): A key to an alert-message string in a
+            ``Localizable.strings`` file for the current localization.
+        loc_args (list, optional): List of string values to appear in place of
+            the format specifiers in ``loc_key``.
+        launch_image (str, optional): The filename of an image file in the app
+            bundle; it may include the extension or omit it.
+        extra (dict, optional): Extra data to include with the alert.
+
+    Returns:
+        None
+
+    Raises:
+        APNSInvalidTokenError: Invalid token format.
+        APNSInvalidPayloadSizeError: Notification payload size too large.
+        APNSServerError: APNS error response from server.
+
+    .. versionadded:: 0.0.1
+    """
     if not is_valid_token(token):
         raise APNSInvalidTokenError(('Invalid token format. '
                                      'Expected 64 character hex string.'))
@@ -310,8 +378,28 @@ def send(token,
             check_errors(_connection, config)
 
 
-    """Send push notification to multiple devices."""
 def send_bulk(tokens, data, config, payload=None, **options):
+    """Send push notification to multiple devices.
+
+    Args:
+        tokens (list): List of APNS device tokens. Each token is expected to be
+            a 64 character hex string.
+        data (str|dict): Alert message or dictionary.
+        config (dict): Configuration dictionary containing APNS configuration
+            values. See :mod:`pushjack.config` for more details.
+        payload (str, optional): Directly send alert payload as JSON formatted
+            string. If set then alert arguments are ignored and `payload` is
+            used directly. Defaults to ``None`` which results in `payload`
+            being constructed from passed in arguments.
+
+    Returns:
+        None
+
+    See Also:
+        See :func:`send` for a full listing of keyword arguments.
+
+    .. versionadded:: 0.0.1
+    """
     if payload is None:
         # Reuse payload since it's identical for each send.
         payload = create_payload(data, **options)
@@ -330,6 +418,16 @@ def send_bulk(tokens, data, config, payload=None, **options):
 
 
 def get_expired_tokens(config):
-    """Return inactive device ids that can't be pushed to anymore."""
+    """Return inactive device ids that can't be pushed to anymore.
+
+    Args:
+        config (dict): Configuration dictionary containing APNS configuration
+            values. See :mod:`pushjack.config` for more details.
+
+    Returns:
+        list: List of tuples containing ``(token, timestamp)``.
+
+    .. versionadded:: 0.0.1
+    """
     with closing(create_feedback_socket(config)) as connection:
         return receive_feedback(connection)
