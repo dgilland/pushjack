@@ -80,10 +80,10 @@ def create_payload(alert,
             alert['title'] = title
 
         if title_loc_key:
-            alert['title_loc_key'] = title_loc_key
+            alert['title-loc-key'] = title_loc_key
 
         if title_loc_args:
-            alert['title_loc_args'] = title_loc_args
+            alert['title-loc-args'] = title_loc_args
 
         if action_loc_key:
             alert['action-loc-key'] = action_loc_key
@@ -95,7 +95,7 @@ def create_payload(alert,
             alert['loc-args'] = loc_args
 
         if launch_image:
-            alert['launch_image'] = launch_image
+            alert['launch-image'] = launch_image
 
     if alert:
         payload['aps']['alert'] = alert

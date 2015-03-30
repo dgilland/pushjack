@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+- Fix payload key assigments for ``title-loc``, ``title-loc-args``, and ``launch-image``. Previously, ``'_'`` was used in place of ``'-'``.
+
+
 v0.2.1 (2015-03-28)
 -------------------
 

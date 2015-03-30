@@ -66,9 +66,9 @@ test_token = '1' * 64
       'expiration': 3},
      (json_dumps({'aps': {'alert': {'body': 'Hello world',
                                     'title': 'title',
-                                    'title_loc_key': 'tlk',
-                                    'title_loc_args': 'tla',
-                                    'launch_image': 'image'}}}),
+                                    'title-loc-key': 'tlk',
+                                    'title-loc-args': 'tla',
+                                    'launch-image': 'image'}}}),
       0, 3, 10)),
 ])
 def test_apns_send(apns, apns_sock, token, alert, extra, expected):
@@ -123,9 +123,9 @@ def test_apns_send(apns, apns_sock, token, alert, extra, expected):
       'expiration': 3},
      (json_dumps({'aps': {'alert': {'body': 'Hello world',
                                     'title': 'title',
-                                    'title_loc_key': 'tlk',
-                                    'title_loc_args': 'tla',
-                                    'launch_image': 'image'}}}),
+                                    'title-loc-key': 'tlk',
+                                    'title-loc-args': 'tla',
+                                    'launch-image': 'image'}}}),
       0, 3, 10)),
 ])
 def test_apns_send_bulk(apns, apns_sock, tokens, alert, extra, expected):
