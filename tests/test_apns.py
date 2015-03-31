@@ -73,7 +73,7 @@ test_token = '1' * 64
 ])
 def test_apns_send(apns, apns_sock, token, alert, extra, expected):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-        apns.send(token, alert, connection=apns_sock, **extra)
+        apns.send(token, alert, sock=apns_sock, **extra)
         pack_frame.assert_called_once_with(token, *expected)
 
 
@@ -144,7 +144,7 @@ def test_apns_send_bulk(apns, apns_sock, tokens, alert, extra, expected):
     'abcdef0123456789' * 4,
 ])
 def test_valid_token(apns, token, apns_sock):
-    apns.send(token, None, connection=apns_sock)
+    apns.send(token, None, sock=apns_sock)
     assert apns_sock.write.called
 
 
@@ -154,7 +154,7 @@ def test_valid_token(apns, token, apns_sock):
 ])
 def test_invalid_token(apns, token, apns_sock):
     with pytest.raises(APNSError) as exc_info:
-        apns.send(token, None, connection=apns_sock)
+        apns.send(token, None, sock=apns_sock)
 
     assert 'Invalid token format' in str(exc_info.value)
 
@@ -167,7 +167,7 @@ def test_apns_use_extra(apns, apns_sock):
                   identifier=10,
                   expiration=30,
                   priority=10,
-                  connection=apns_sock)
+                  sock=apns_sock)
 
         expected_payload = b'{"aps":{"alert":"sample"},"foo":"bar"}'
         pack_frame.assert_called_once_with(test_token,
@@ -184,7 +184,7 @@ def test_apns_socket_write(apns, apns_sock):
               identifier=10,
               expiration=30,
               priority=10,
-              connection=apns_sock)
+              sock=apns_sock)
 
     expected = mock.call.write(
         b'\x02\x00\x00\x00^\x01\x00 \x11\x11\x11\x11\x11'
@@ -201,7 +201,7 @@ def test_apns_socket_write(apns, apns_sock):
 def test_apns_invalid_payload_size(apns, apns_sock):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
         with pytest.raises(APNSInvalidPayloadSizeError):
-            apns.send(test_token, '_' * 2049, connection=apns_sock)
+            apns.send(test_token, '_' * 2049, sock=apns_sock)
 
         assert not pack_frame.called
 

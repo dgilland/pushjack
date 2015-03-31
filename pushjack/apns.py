@@ -130,17 +130,17 @@ def create_socket(host, port, certfile):
         raise APNSAuthError(('The certfile at {0} is not readable: {1}'
                              .format(certfile, ex)))
 
-    connection = socket.socket()
+    sock = socket.socket()
 
     # For some reason, pylint on TravisCI's Python 2.7 platform complains that
     # ssl.PROTOCOL_TLSv1 doesn't exist. Add a disable flag to bypass this.
     # pylint: disable=no-member
-    connection = ssl.wrap_socket(connection,
-                                 ssl_version=ssl.PROTOCOL_TLSv1,
-                                 certfile=certfile)
-    connection.connect((host, port))
+    sock = ssl.wrap_socket(sock,
+                           ssl_version=ssl.PROTOCOL_TLSv1,
+                           certfile=certfile)
+    sock.connect((host, port))
 
-    return connection
+    return sock
 
 
 def create_push_socket(config):
@@ -157,7 +157,7 @@ def create_feedback_socket(config):
                          config['APNS_CERTIFICATE'])
 
 
-def check_errors(connection, config):
+def check_errors(sock, config):
     """Check socket response for errors and raise status based exception if
     found.
     """
@@ -167,11 +167,11 @@ def check_errors(connection, config):
         # Assume everything went fine.
         return
 
-    original_timeout = connection.gettimeout()
+    original_timeout = sock.gettimeout()
 
     try:
-        connection.settimeout(timeout)
-        data = connection.recv(6)
+        sock.settimeout(timeout)
+        data = sock.recv(6)
 
         if data:
             command, status, identifier = struct.unpack("!BBI", data)
@@ -192,7 +192,7 @@ def check_errors(connection, config):
         if 'timed out' not in ex.message:
             raise
     finally:
-        connection.settimeout(original_timeout)
+        sock.settimeout(original_timeout)
 
 
 def pack_frame(token, payload, identifier, expiration, priority):
@@ -216,10 +216,10 @@ def pack_frame(token, payload, identifier, expiration, priority):
     return frame
 
 
-def read_and_unpack(connection, data_format):
+def read_and_unpack(sock, data_format):
     """Unpack and return socket frame."""
     length = struct.calcsize(data_format)
-    data = connection.recv(length)
+    data = sock.recv(length)
 
     if data:
         return struct.unpack_from(data_format, data, 0)
@@ -227,7 +227,7 @@ def read_and_unpack(connection, data_format):
         return None
 
 
-def receive_feedback(connection):
+def receive_feedback(sock):
     """Return expired tokens from feedback server."""
     expired_tokens = []
 
@@ -238,13 +238,13 @@ def receive_feedback(connection):
     while has_data:
         try:
             # Read the header tuple.
-            header_data = read_and_unpack(connection, header_format)
+            header_data = read_and_unpack(sock, header_format)
 
             if header_data is not None:
                 timestamp, token_length = header_data
 
                 # Unpack format for a single value of length bytes
-                device_token = read_and_unpack(connection,
+                device_token = read_and_unpack(sock,
                                                '{0}s'.format(token_length))
 
                 if device_token is not None:
@@ -264,20 +264,20 @@ def receive_feedback(connection):
 
 
 def send(token,
-         data,
+         alert,
          config,
          identifier=0,
          expiration=None,
          priority=10,
          payload=None,
-         connection=None,
+         sock=None,
          **options):
     """Send push notification to single device.
 
     Args:
         token (str): APNS device token. Expected to be a 64 character hex
             string.
-        data (str|dict): Alert message or dictionary.
+        alert (str|dict): Alert message or dictionary.
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
         identifier (int, optional): Message identifier. Defaults to ``0``.
@@ -301,11 +301,10 @@ def send(token,
             string. If set then alert arguments are ignored and `payload` is
             used directly. Defaults to ``None`` which results in `payload`
             being constructed from passed in arguments.
-        connection (socket, optional): Provide outside socket connection to
+        sock (SSLSocket, optional): Provide outside SSL socket connection to
             APNS server. Socket is assumed to have been preconfigured and ready
-            to use. When `connection` is provided, no error checking is done;
-            it's assumed that the connection provider will handle that
-            themselves.
+            to use. When `sock` is provided, no error checking is done;
+            it's assumed that the socket provider will handle that.
 
     Keyword Args:
         badge (int, optional): Badge number count for alert. Defaults to
@@ -347,7 +346,7 @@ def send(token,
                                      'Expected 64 character hex string.'))
 
     if payload is None:
-        payload = create_payload(data, **options)
+        payload = create_payload(alert, **options)
 
     max_size = config['APNS_MAX_NOTIFICATION_SIZE']
     default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
@@ -367,21 +366,21 @@ def send(token,
                        expiration_time,
                        priority)
 
-    if connection:
-        connection.write(frame)
+    if sock:
+        sock.write(frame)
     else:
-        with closing(create_push_socket(config)) as _connection:
-            _connection.write(frame)
-            check_errors(_connection, config)
+        with closing(create_push_socket(config)) as _sock:
+            _sock.write(frame)
+            check_errors(_sock, config)
 
 
-def send_bulk(tokens, data, config, payload=None, **options):
+def send_bulk(tokens, alert, config, payload=None, **options):
     """Send push notification to multiple devices.
 
     Args:
         tokens (list): List of APNS device tokens. Each token is expected to be
             a 64 character hex string.
-        data (str|dict): Alert message or dictionary.
+        alert (str|dict): Alert message or dictionary.
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
         payload (str, optional): Directly send alert payload as JSON formatted
@@ -399,19 +398,19 @@ def send_bulk(tokens, data, config, payload=None, **options):
     """
     if payload is None:
         # Reuse payload since it's identical for each send.
-        payload = create_payload(data, **options)
+        payload = create_payload(alert, **options)
 
-    with closing(create_push_socket(config)) as connection:
+    with closing(create_push_socket(config)) as sock:
         for identifier, token in enumerate(tokens):
             send(token,
-                 data,
+                 alert,
                  config,
                  identifier=identifier,
                  payload=payload,
-                 connection=connection,
+                 sock=sock,
                  **options)
 
-        check_errors(connection, config)
+        check_errors(sock, config)
 
 
 def get_expired_tokens(config):
@@ -426,5 +425,5 @@ def get_expired_tokens(config):
 
     .. versionadded:: 0.0.1
     """
-    with closing(create_feedback_socket(config)) as connection:
-        return receive_feedback(connection)
+    with closing(create_feedback_socket(config)) as sock:
+        return receive_feedback(sock)
