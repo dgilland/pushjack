@@ -6,6 +6,7 @@ import pytest
 from pushjack import (
     APNSClient,
     APNSError,
+    APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
     APNSConfig,
     create_apns_config,
@@ -157,8 +158,8 @@ def test_valid_token(apns_client, token, apns_sock):
     '1',
     'x' * 64,
 ])
-    with pytest.raises(APNSError) as exc_info:
 def test_invalid_token(apns_client, token, apns_sock):
+    with pytest.raises(APNSInvalidTokenError) as exc_info:
         apns_client.send(token, None, sock=apns_sock)
 
     assert 'Invalid token format' in str(exc_info.value)
