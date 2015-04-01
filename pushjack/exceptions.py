@@ -11,6 +11,20 @@ class NotificationError(Exception):
     description = None
 
 
+class ServerError(NotificationError):
+    """Base exception for server errors."""
+    def __init__(self, identifier):
+        super(ServerError, self).__init__(self.code,
+                                          self.description,
+                                          identifier)
+        self.identifier = identifier
+
+    def __str__(self):  # pragma: no cover
+        return '{0}: {1} for identifier {2}'.format(self.code,
+                                                    self.description,
+                                                    self.identifier)
+
+
 class GCMError(NotificationError):
     """Base exception for GCM errors."""
     pass
@@ -19,6 +33,77 @@ class GCMError(NotificationError):
 class GCMAuthError(GCMError):
     """Exception for error with GCM API key."""
     pass
+
+
+class GCMServerError(ServerError):
+    """Base exception for GCM Server errors."""
+    pass
+
+
+class GCMMissingRegistrationError(GCMServerError):
+    """Exception for missing registration ID."""
+    code = 'MissingRegistration'
+    description = 'Missing registration ID'
+
+
+class GCMInvalidRegistrationError(GCMServerError):
+    """Exception for invalid registration ID"""
+    code = 'InvalidRegistration'
+    description = 'Invalid registration ID'
+
+
+class GCMUnregisteredDeviceError(GCMServerError):
+    """Exception for unregistered device."""
+    code = 'NotRegistered'
+    description = 'Device not registered'
+
+
+class GCMInvalidPackageNameError(GCMServerError):
+    """Exception for invalid package name."""
+    code = 'InvalidPackageName'
+    description = 'Invalid package name'
+
+
+class GCMMismatchedSenderError(GCMServerError):
+    """Exception for mismatched sender."""
+    code = 'MismatchSenderId'
+    description = 'Mismatched sender ID'
+
+
+class GCMMessageTooBigError(GCMServerError):
+    """Exception for message too big."""
+    code = 'MessageTooBig'
+    description = 'Message too big'
+
+
+class GCMInvalidDataKeyError(GCMServerError):
+    """Exception for invalid data key."""
+    code = 'InvalidDataKey'
+    description = 'Invalid data key'
+
+
+class GCMInvalidTimeToLiveError(GCMServerError):
+    """Exception for invalid time to live."""
+    code = 'InvalidTtl'
+    description = 'Invalid time to live'
+
+
+class GCMTimeoutError(GCMServerError):
+    """Exception for server timeout."""
+    code = 'Unavailable'
+    description = 'Timeout'
+
+
+class GCMInternalServerError(GCMServerError):
+    """Exception for internal server error."""
+    code = 'InternalServerError'
+    description = 'Internal server error'
+
+
+class GCMDeviceMessageRateExceededError(GCMServerError):
+    """Exception for device message rate exceeded."""
+    code = 'DeviceMessageRateExceeded'
+    description = 'Device message rate exceeded'
 
 
 class APNSError(NotificationError):
@@ -31,18 +116,9 @@ class APNSAuthError(APNSError):
     pass
 
 
-class APNSServerError(APNSError):
+class APNSServerError(ServerError):
     """Base exception for APNS Server errors."""
-    def __init__(self, identifier):
-        self.identifier = identifier
-        super(APNSServerError, self).__init__(self.code,
-                                              self.description,
-                                              identifier)
-
-    def __str__(self):  # pragma: no cover
-        return '{0}: {1} for identifier {2}'.format(self.code,
-                                                    self.description,
-                                                    self.identifier)
+    pass
 
 
 class APNSProcessingError(APNSServerError):
@@ -110,29 +186,49 @@ class Raiser(object):
     and exception code.
     """
     prefix = None
+    base_exception = None
 
-    def __init__(self):
-        self.mapping = {}
-
-        for name, obj in iteritems(globals()):
-            if (name.startswith(self.prefix) and
-                    getattr(obj, 'code', None) is not None):
-                self.mapping[obj.code] = obj
+    def __init__(self, mapping):
+        self.mapping = mapping
 
     def __call__(self, code, *args, **kargs):
         if not isinstance(code, int) and not args and not kargs:
-            raise APNSServerError(code)  # pragma: no cover
+            # pylint: disable=not-callable
+            raise self.base_exception(code)  # pragma: no cover
 
         if code not in self.mapping:  # pragma: no cover
-            raise LookupError('No APNS exception for {0}'.format(code))
+            raise LookupError('No server exception for {0}'.format(code))
 
         raise self.mapping[code](*args, **kargs)
+
+
+class GCMServerRaiser(Raiser):
+    """Exception raiser classs for GCM server errors."""
+    prefix = 'GCM'
+    base_exception = GCMServerError
 
 
 class APNSServerRasier(Raiser):
     """Exception raiser class for APNS errors."""
     prefix = 'APNS'
+    base_exception = APNSServerError
 
+
+def map_errors(prefix):
+    mapping = {}
+    for name, obj in iteritems(globals()):
+        if (name.startswith(prefix) and
+                getattr(obj, 'code', None) is not None):
+            mapping[obj.code] = obj
+    return mapping
+
+
+gcm_server_errors = map_errors('GCM')
+apns_server_errors = map_errors('APNS')
+
+
+#: Helper method to raise GCM server errors.
+raise_gcm_server_error = GCMServerRaiser(gcm_server_errors)
 
 #: Helper method to raise APNS server errors.
-raise_apns_server_error = APNSServerRasier()
+raise_apns_server_error = APNSServerRasier(apns_server_errors)
