@@ -7,7 +7,7 @@ try:
 except ImportError:
     import json
 
-from ._compat import range_ as range
+from ._compat import range_ as range, string_types
 
 
 def chunk(seq, size):
@@ -23,4 +23,6 @@ def json_dumps(data):
 
 def json_loads(string):
     """Standardized json.loads function."""
-    return json.loads(string)
+    if not isinstance(string, (string_types)):
+        string = string.decode('utf8')
+    return json.loads(str(string))
