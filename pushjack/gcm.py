@@ -21,7 +21,7 @@ __all__ = (
 )
 
 
-class Request(object):
+class GCMRequest(object):
     """Wrapper around requests session bound to GCM config."""
     def __init__(self, config):
         self.api_key = config.get('GCM_API_KEY')
@@ -105,7 +105,7 @@ def send(registration_id, data, config, request=None, **options):
         raise GCMAuthError('Missing GCM API key. Cannot send notifications.')
 
     if request is None:
-        request = Request(config)
+        request = GCMRequest(config)
 
     payload = create_payload(registration_id, data, **options)
     response = request(payload)
@@ -139,7 +139,7 @@ def send_bulk(registration_ids, data, config, request=None, **options):
     .. versionadded:: 0.0.1
     """
     if request is None:
-        request = Request(config)
+        request = GCMRequest(config)
 
     max_recipients = config.get('GCM_MAX_RECIPIENTS')
 
