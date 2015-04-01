@@ -44,7 +44,9 @@ def create_payload(registration_ids,
                    data,
                    collapse_key=None,
                    delay_while_idle=None,
-                   time_to_live=None):
+                   time_to_live=None,
+                   restricted_package_name=None,
+                   dry_run=None):
     """Return notification payload in JSON format."""
     if not isinstance(registration_ids, (list, tuple)):
         registration_ids = [registration_ids]
@@ -65,6 +67,12 @@ def create_payload(registration_ids,
 
     if time_to_live is not None:
         payload['time_to_live'] = time_to_live
+
+    if restricted_package_name is not None:
+        payload['restricted_package_name'] = restricted_package_name
+
+    if dry_run:
+        payload['dry_run'] = True
 
     return payload
 
@@ -91,6 +99,11 @@ def send(registration_id, data, config, request=None, **options):
             be kept in GCM storage if the device is offline. The maximum time
             to live supported is 4 weeks. Defaults to ``None`` which uses the
             GCM default of 4 weeks.
+        restricted_package_name (str, optional): Package name of the
+            application where the registration IDs must match in order to
+            receive the message. Defaults to ``None``.
+        dry_run (bool, optional): If ``True`` no message will be sent but
+            request will be tested.
 
     Returns:
         dict: Response from GCM server.
