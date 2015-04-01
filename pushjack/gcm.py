@@ -106,7 +106,7 @@ def send(registration_id, data, config, request=None, **options):
             request will be tested.
 
     Returns:
-        dict: Response from GCM server.
+        Response: ``requests.Response`` object from GCM server.
 
     Raises:
         GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
@@ -121,13 +121,7 @@ def send(registration_id, data, config, request=None, **options):
         request = GCMRequest(config)
 
     payload = create_payload(registration_id, data, **options)
-    response = request(payload)
-    results = response.json()
-
-    if 'failure' in results and results.get('failure'):
-        raise GCMError(results)
-
-    return results
+    return request(payload)
 
 
 def send_bulk(registration_ids, data, config, request=None, **options):
@@ -143,8 +137,8 @@ def send_bulk(registration_ids, data, config, request=None, **options):
             callable.
 
     Returns:
-        list: List of chunked GCM server responses grouped by
-            ``GCM_MAX_RECIPIENTS``.
+        list: List of chunked ``requests.Response`` objects from GCM server
+            grouped by ``GCM_MAX_RECIPIENTS``.
 
     See Also:
         See :func:`send` for a full listing of keyword arguments.
