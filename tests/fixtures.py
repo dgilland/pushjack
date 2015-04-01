@@ -34,7 +34,7 @@ def apns_socket_factory(return_status):
 
 
 @pytest.fixture
-def apns():
+def apns_client():
     """Return APNS client."""
     return APNSClient(create_apns_config())
 

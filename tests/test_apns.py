@@ -14,7 +14,7 @@ from pushjack import (
 )
 from pushjack.utils import json_dumps
 
-from .fixtures import apns, apns_sock, apns_socket_factory, parametrize
+from .fixtures import apns_client, apns_sock, apns_socket_factory, parametrize
 
 
 test_token = '1' * 64
@@ -71,9 +71,9 @@ test_token = '1' * 64
                                     'launch-image': 'image'}}}),
       0, 3, 10)),
 ])
-def test_apns_send(apns, apns_sock, token, alert, extra, expected):
+def test_apns_send(apns_client, apns_sock, token, alert, extra, expected):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-        apns.send(token, alert, sock=apns_sock, **extra)
+        apns_client.send(token, alert, sock=apns_sock, **extra)
         pack_frame.assert_called_once_with(token, *expected)
 
 
@@ -128,12 +128,17 @@ def test_apns_send(apns, apns_sock, token, alert, extra, expected):
                                     'launch-image': 'image'}}}),
       0, 3, 10)),
 ])
-def test_apns_send_bulk(apns, apns_sock, tokens, alert, extra, expected):
+def test_apns_send_bulk(apns_client,
+                        apns_sock,
+                        tokens,
+                        alert,
+                        extra,
+                        expected):
     with mock.patch('pushjack.apns.create_push_socket') as create_socket:
         create_socket.return_value = apns_sock
 
         with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-            apns.send_bulk(tokens, alert, **extra)
+            apns_client.send_bulk(tokens, alert, **extra)
             calls = [mock.call(token, expected[0], identifier, *expected[2:])
                      for identifier, token in enumerate(tokens)]
             pack_frame.assert_has_calls(calls)
@@ -143,8 +148,8 @@ def test_apns_send_bulk(apns, apns_sock, tokens, alert, extra, expected):
     '1' * 64,
     'abcdef0123456789' * 4,
 ])
-def test_valid_token(apns, token, apns_sock):
-    apns.send(token, None, sock=apns_sock)
+def test_valid_token(apns_client, token, apns_sock):
+    apns_client.send(token, None, sock=apns_sock)
     assert apns_sock.write.called
 
 
@@ -152,22 +157,22 @@ def test_valid_token(apns, token, apns_sock):
     '1',
     'x' * 64,
 ])
-def test_invalid_token(apns, token, apns_sock):
     with pytest.raises(APNSError) as exc_info:
-        apns.send(token, None, sock=apns_sock)
+def test_invalid_token(apns_client, token, apns_sock):
+        apns_client.send(token, None, sock=apns_sock)
 
     assert 'Invalid token format' in str(exc_info.value)
 
 
-def test_apns_use_extra(apns, apns_sock):
+def test_apns_use_extra(apns_client, apns_sock):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-        apns.send(test_token,
-                  'sample',
-                  extra={'foo': 'bar'},
-                  identifier=10,
-                  expiration=30,
-                  priority=10,
-                  sock=apns_sock)
+        apns_client.send(test_token,
+                         'sample',
+                         extra={'foo': 'bar'},
+                         identifier=10,
+                         expiration=30,
+                         priority=10,
+                         sock=apns_sock)
 
         expected_payload = b'{"aps":{"alert":"sample"},"foo":"bar"}'
         pack_frame.assert_called_once_with(test_token,
@@ -177,14 +182,14 @@ def test_apns_use_extra(apns, apns_sock):
                                            10)
 
 
-def test_apns_socket_write(apns, apns_sock):
-    apns.send(test_token,
-              'sample',
-              extra={'foo': 'bar'},
-              identifier=10,
-              expiration=30,
-              priority=10,
-              sock=apns_sock)
+def test_apns_socket_write(apns_client, apns_sock):
+    apns_client.send(test_token,
+                     'sample',
+                     extra={'foo': 'bar'},
+                     identifier=10,
+                     expiration=30,
+                     priority=10,
+                     sock=apns_sock)
 
     expected = mock.call.write(
         b'\x02\x00\x00\x00^\x01\x00 \x11\x11\x11\x11\x11'
@@ -198,10 +203,10 @@ def test_apns_socket_write(apns, apns_sock):
     assert expected in apns_sock.mock_calls
 
 
-def test_apns_invalid_payload_size(apns, apns_sock):
+def test_apns_invalid_payload_size(apns_client, apns_sock):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
         with pytest.raises(APNSInvalidPayloadSizeError):
-            apns.send(test_token, '_' * 2049, sock=apns_sock)
+            apns_client.send(test_token, '_' * 2049, sock=apns_sock)
 
         assert not pack_frame.called
 
@@ -218,13 +223,13 @@ def test_apns_invalid_payload_size(apns, apns_sock):
     (10, exceptions.APNSShutdownError),
     (255, exceptions.APNSUnknownError),
 ])
-def test_apns_error_handling(apns, code, exception):
+def test_apns_error_handling(apns_client, code, exception):
     exception_sock = apns_socket_factory(code)
 
     with mock.patch('pushjack.apns.create_push_socket') as create_push_socket:
         create_push_socket.return_value = exception_sock
         with pytest.raises(exception):
-            apns.send(test_token, '')
+            apns_client.send(test_token, '')
 
 
 def test_apns_config():
