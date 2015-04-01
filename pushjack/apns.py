@@ -6,6 +6,7 @@ Documentation is available on the iOS Developer Library: http://goo.gl/wFVr2S
 
 from binascii import unhexlify
 from contextlib import closing
+from functools import partial
 import socket
 import ssl
 import struct
@@ -157,7 +158,20 @@ def create_feedback_socket(config):
                          config['APNS_CERTIFICATE'])
 
 
-def check_errors(sock, config):
+def ensure_push_socket(sock, config):
+    """Ensures push socket connection exists. If it doesn't, create one. Flag
+    whether the socket should be kept alive if we didn't create it.
+    """
+    if not sock:
+        sock = create_push_socket(config)
+        keepalive = False
+    else:
+        keepalive = True
+
+    return (sock, keepalive)
+
+
+def error_check(sock, config):
     """Check socket response for errors and raise status based exception if
     found.
     """
@@ -304,7 +318,8 @@ def send(token,
         sock (SSLSocket, optional): Provide outside SSL socket connection to
             APNS server. Socket is assumed to have been preconfigured and ready
             to use. When `sock` is provided, no error checking is done;
-            it's assumed that the socket provider will handle that.
+            it's assumed that the socket provider will handle that. Default is
+            ``None.
 
     Keyword Args:
         badge (int, optional): Badge number count for alert. Defaults to
@@ -366,15 +381,16 @@ def send(token,
                        expiration_time,
                        priority)
 
-    if sock:
-        sock.write(frame)
-    else:
-        with closing(create_push_socket(config)) as _sock:
-            _sock.write(frame)
-            check_errors(_sock, config)
+    sock, keepalive = ensure_push_socket(sock, config)
+
+    sock.write(frame)
+
+    if not keepalive:
+        error_check(sock, config)
+        sock.close()
 
 
-def send_bulk(tokens, alert, config, payload=None, **options):
+def send_bulk(tokens, alert, config, payload=None, sock=None, **options):
     """Send push notification to multiple devices.
 
     Args:
@@ -387,6 +403,11 @@ def send_bulk(tokens, alert, config, payload=None, **options):
             string. If set then alert arguments are ignored and `payload` is
             used directly. Defaults to ``None`` which results in `payload`
             being constructed from passed in arguments.
+        sock (SSLSocket, optional): Provide outside SSL socket connection to
+            APNS server. Socket is assumed to have been preconfigured and ready
+            to use. When `sock` is provided, no error checking is done;
+            it's assumed that the socket provider will handle that. Default is
+            ``None.
 
     Returns:
         None
@@ -400,17 +421,22 @@ def send_bulk(tokens, alert, config, payload=None, **options):
         # Reuse payload since it's identical for each send.
         payload = create_payload(alert, **options)
 
-    with closing(create_push_socket(config)) as sock:
-        for identifier, token in enumerate(tokens):
-            send(token,
-                 alert,
-                 config,
-                 identifier=identifier,
-                 payload=payload,
-                 sock=sock,
-                 **options)
+    sock, keepalive = ensure_push_socket(sock, config)
 
-        check_errors(sock, config)
+    # Bind common arguments to partial send function.
+    sender = partial(send,
+                     alert=alert,
+                     config=config,
+                     payload=payload,
+                     sock=sock,
+                     **options)
+
+    for identifier, token in enumerate(tokens):
+        sender(token=token, identifier=identifier)
+
+    if not keepalive:
+        error_check(sock, config)
+        sock.close()
 
 
 def get_expired_tokens(config):
