@@ -3,16 +3,18 @@
 import struct
 
 import pytest
+import httmock
 import mock
 
+import pushjack
 from pushjack import (
     APNSClient,
     GCMClient,
     create_apns_config,
     create_gcm_config
 )
-
 from pushjack.apns import APNS_ERROR_RESPONSE_COMMAND
+from pushjack.utils import json_dumps, json_loads
 
 
 # pytest.mark is a generator so create alias for convenience
@@ -47,35 +49,33 @@ def apns_sock():
     return sock
 
 
+def gcm_server_response_factory(content):
+    @httmock.all_requests
+    def response(url, request):
+        headers = {'content-type': 'application/json'}
+        return httmock.response(200, content, headers, None, 1, request)
+    return response
+
+
+@httmock.all_requests
+def gcm_server_response(url, request):
+    payload = json_loads(request.body)
+    headers = {'content-type': 'application/json'}
+    content = {
+        'multicast_id': 1,
+        'success': len(payload['registration_ids']),
+        'failure': 0,
+        'canonical_ids': 0,
+        'results': []
+    }
+
+    content['results'] = [{'message_id': registration_id}
+                          for registration_id in payload['registration_ids']]
+
+    return httmock.response(200, content, headers, None, 1, request)
+
+
 @pytest.fixture
-def gcm():
+def gcm_client():
     """Return GCM client."""
     return GCMClient(create_gcm_config({'GCM_API_KEY': '1234'}))
-
-
-@pytest.fixture
-def gcm_response():
-    """Return mock for HTTP response."""
-    response = mock.MagicMock()
-    response.json = lambda: {}
-    return response
-
-
-@pytest.fixture
-def gcm_failure_response():
-    """Return mock for failure HTTP response."""
-    response = mock.MagicMock()
-    response.json = lambda: {'failure': True}
-    return response
-
-
-@pytest.fixture
-def gcm_request(gcm_response):
-    """Return mock for GCM request function."""
-    return mock.MagicMock(return_value=gcm_response)
-
-
-@pytest.fixture
-def gcm_failure_request(gcm_failure_response):
-    """Return mock for GCM request function that returns failure."""
-    return mock.MagicMock(return_value=gcm_failure_response)

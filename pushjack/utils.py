@@ -19,3 +19,8 @@ def json_dumps(data):
     """Standardized json.dumps function with separators and sorted keys set."""
     return (json.dumps(data, separators=(',', ':'), sort_keys=True)
             .encode('utf8'))
+
+
+def json_loads(string):
+    """Standardized json.loads function."""
+    return json.loads(string)

@@ -70,14 +70,60 @@ class GCMClient(Client):
     """GCM client class.
 
     See Also:
-        For more details on the supported keyword arguments of each method,
-        consult:
-
-        - :mod:`pushjack.gcm.send`
-        - :mod:`pushjack.gcm.send_bulk`
+        :mod:`pushjack.gcm`
     """
     #: GCM adapter.
     adapter = gcm
+
+    def send(self, device_id, data, **options):
+        """Send push notification to single recipient.
+
+        Args:
+            device_id (str): Device ID to send notification to.
+            data (str|dict): Notification data to send.
+
+        Keyword Args:
+            See push notification service's module for more details.
+
+        Returns:
+            :class:`pushjack.gcm.Response`
+
+        See Also:
+            :func:`pushjack.gcm.send`
+
+        .. versionadded:: 0.0.1
+        """
+        response = self.adapter.send(device_id,
+                                     data,
+                                     self.config,
+                                     **options)
+
+        return gcm.GCMResponse(response)
+
+    def send_bulk(self, device_ids, data, **options):
+        """Send push notification to multiple recipients.
+
+        Args:
+            device_ids (list): List of device IDs to send notification to.
+            data (str|dict): Notification data to send.
+
+        Keyword Args:
+            See push notification service's module for more details.
+
+        Returns:
+            :class:`pushjack.gcm.BulkResponse`
+
+        See Also:
+            :func:`pushjack.gcm.send_bulk`
+
+        .. versionadded:: 0.0.1
+        """
+        responses = self.adapter.send_bulk(device_ids,
+                                           data,
+                                           self.config,
+                                           **options)
+
+        return gcm.GCMResponse(responses)
 
 
 class APNSClient(Client):

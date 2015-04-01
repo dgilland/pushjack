@@ -1,36 +1,43 @@
 # -*- coding: utf-8 -*-
 
+import httmock
 import mock
-import json
-
 import pytest
 
-from pushjack import GCMClient, GCMError, GCMConfig, create_gcm_config
-from pushjack.gcm import Request
+from pushjack import (
+    GCMClient,
+    GCMError,
+    GCMConfig,
+    create_gcm_config,
+    exceptions
+)
+from pushjack.gcm import GCMRequest
 from pushjack.utils import json_dumps
 
 from .fixtures import (
-    gcm,
-    gcm_response,
-    gcm_failure_response,
-    gcm_request,
-    gcm_failure_request,
+    gcm_client,
+    gcm_server_response,
+    gcm_server_response_factory,
     parametrize
 )
 
 
-@parametrize('tokens,data,extra,expected', [
+@parametrize('token,data,extra,payload', [
     ('abc', 'Hello world', {},
      {'registration_ids': ['abc'],
       'data': {'message': 'Hello world'}}),
     ('abc', {'message': 'Hello world'}, {'delay_while_idle': True,
                                          'time_to_live': 3600,
-                                         'collapse_key': 'key'},
+                                         'collapse_key': 'key',
+                                         'restricted_package_name': 'name',
+                                         'dry_run': True},
      {'registration_ids': ['abc'],
       'data': {'message': 'Hello world'},
       'delay_while_idle': True,
       'time_to_live': 3600,
-      'collapse_key': 'key'}),
+      'collapse_key': 'key',
+      'restricted_package_name': 'name',
+      'dry_run': True}),
     ('abc',
      {'message': 'Hello world',
       'custom': {'key0': ['value0_0'],
@@ -43,23 +50,41 @@ from .fixtures import (
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send(gcm, gcm_request, tokens, data, extra, expected):
-    gcm.send(tokens, data, request=gcm_request, **extra)
-    gcm_request.assert_called_once_with(json_dumps(expected))
+def test_gcm_send(gcm_client, token, data, extra, payload):
+    with httmock.HTTMock(gcm_server_response):
+        res = gcm_client.send(token, data, **extra)
+
+        assert len(res.responses) == 1
+        assert res.registration_ids == [token]
+        assert res.data == [{'multicast_id': 1,
+                             'success': 1,
+                             'failure': 0,
+                             'canonical_ids': 0,
+                             'results': [{'message_id': str(token)}]}]
+        assert res.successes == [token]
+        assert res.payloads == [payload]
+        assert res.errors == []
+        assert res.canonical_ids == []
 
 
-@parametrize('tokens,data,extra,expected', [
+@parametrize('tokens,data,extra,payload', [
     (['abc', 'def', 'ghi'], 'Hello world', {},
      {'registration_ids': ['abc', 'def', 'ghi'],
       'data': {'message': 'Hello world'}}),
     (['abc', 'def', 'ghi'],
      {'message': 'Hello world'},
-     {'delay_while_idle': True, 'time_to_live': 3600, 'collapse_key': 'key'},
+     {'delay_while_idle': True,
+      'time_to_live': 3600,
+      'collapse_key': 'key',
+      'restricted_package_name': 'name',
+      'dry_run': True},
      {'registration_ids': ['abc', 'def', 'ghi'],
       'data': {'message': 'Hello world'},
       'delay_while_idle': True,
       'time_to_live': 3600,
-      'collapse_key': 'key'}),
+      'collapse_key': 'key',
+      'restricted_package_name': 'name',
+      'dry_run': True}),
     (['abc', 'def', 'ghi'],
      {'message': 'Hello world',
       'custom': {'key0': ['value0_0'],
@@ -72,20 +97,61 @@ def test_gcm_send(gcm, gcm_request, tokens, data, extra, expected):
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send_bulk(gcm, gcm_request, tokens, data, extra, expected):
-    gcm.send_bulk(tokens, data, request=gcm_request, **extra)
-    gcm_request.assert_called_once_with(json_dumps(expected))
+def test_gcm_send_bulk(gcm_client, tokens, data, extra, payload):
+    with httmock.HTTMock(gcm_server_response):
+        res = gcm_client.send_bulk(tokens, data, **extra)
+
+        assert len(res.responses) == 1
+        assert res.registration_ids == tokens
+        assert res.data == [{'multicast_id': 1,
+                             'success': len(tokens),
+                             'failure': 0,
+                             'canonical_ids': 0,
+                             'results': [{'message_id': token}
+                                         for token in tokens]}]
+        assert res.successes == tokens
+        assert res.payloads == [payload]
+        assert res.errors == []
+        assert res.canonical_ids == []
 
 
-def test_gcm_send_failure(gcm, gcm_failure_request):
-    with pytest.raises(GCMError):
-        gcm.send('abc', {}, request=gcm_failure_request)
+@parametrize('tokens,results,expected', [
+    ([1, 2, 3, 4, 5],
+     [{'error': 'MissingRegistration'},
+      {'message_id': 2},
+      {'error': 'DeviceMessageRateExceeded'},
+      {'message_id': 4, 'registration_id': 44},
+      {'message_id': 5, 'registration_id': 55}],
+     {'registration_ids': [1, 2, 3, 4, 5],
+      'errors': [(exceptions.GCMMissingRegistrationError, 1),
+                 (exceptions.GCMDeviceMessageRateExceededError, 3)],
+      'failures': [1, 3],
+      'successes': [2, 4, 5],
+      'canonical_ids': [(4, 44), (5, 55)]}),
+])
+def test_gcm_response(gcm_client, tokens, results, expected):
+    content = {'results': results}
+    response = gcm_server_response_factory(content)
+
+    with httmock.HTTMock(response):
+        res = gcm_client.send_bulk(tokens, {})
+        assert res.registration_ids == expected['registration_ids']
+        assert res.failures == expected['failures']
+        assert res.successes == expected['successes']
+        assert res.canonical_ids == expected['canonical_ids']
+
+        assert len(res.errors) == len(expected['errors'])
+
+        for i, (ex_class, registration_id) in enumerate(expected['errors']):
+            error = res.errors[i]
+            assert isinstance(error, ex_class)
+            assert error.identifier == registration_id
 
 
-def test_gcm_invalid_api_key(gcm):
-    gcm.config['GCM_API_KEY'] = None
+def test_gcm_invalid_api_key(gcm_client):
+    gcm_client.config['GCM_API_KEY'] = None
     with pytest.raises(GCMError) as exc_info:
-        gcm.send('abc', {})
+        gcm_client.send('abc', {})
 
 
 def test_gcm_create_request():
@@ -94,7 +160,7 @@ def test_gcm_create_request():
         'GCM_URL': 'http://example.com'
     }
 
-    request = Request(config)
+    request = GCMRequest(config)
 
     assert request.url == config['GCM_URL']
     assert request.session.auth == ('key', config['GCM_API_KEY'])
@@ -105,10 +171,10 @@ def test_gcm_create_request():
     'send',
     'send_bulk'
 ])
-def test_gcm_create_request_when_sending(gcm, method):
-    with mock.patch('pushjack.gcm.Request') as request:
-        getattr(gcm, method)(['abc'], {})
-        request.assert_called_with(gcm.config)
+def test_gcm_create_request_when_sending(gcm_client, method):
+    with mock.patch('pushjack.gcm.GCMRequest') as request:
+        getattr(gcm_client, method)(['abc'], {})
+        request.assert_called_with(gcm_client.config)
 
 
 @parametrize('method,tokens,data,extra,expected', [
@@ -125,9 +191,9 @@ def test_gcm_create_request_when_sending(gcm, method):
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
-def test_gcm_request_call(gcm, method, tokens, data, extra, expected):
+def test_gcm_request_call(gcm_client, method, tokens, data, extra, expected):
     with mock.patch('requests.Session') as Session:
-        getattr(gcm, method)(tokens, data, **extra)
+        getattr(gcm_client, method)(tokens, data, **extra)
 
         assert expected in Session.mock_calls
 

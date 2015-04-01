@@ -7,12 +7,10 @@ Documentation is available on the Android Developer website:
 - https://developer.android.com/google/gcm/server-ref.html
 """
 
-from functools import partial
-
 import requests
 
-from .utils import chunk, json_dumps
-from .exceptions import GCMError, GCMAuthError
+from .utils import chunk, json_loads, json_dumps
+from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 
 __all__ = (
@@ -38,6 +36,85 @@ class GCMRequest(object):
             payload = json_dumps(payload)
 
         return self.session.post(self.url, payload)
+
+
+class GCMResponse(object):
+    """GCM server response with results parsed into errors, failures, and
+    canonical IDs.
+    """
+    def __init__(self, responses):
+        if not isinstance(responses, (list, tuple)):
+            responses = [responses]
+
+        self.responses = responses
+        self.payloads = []
+        self.registration_ids = []
+        self.data = []
+        self.errors = []
+        self.successes = []
+        self.failures = []
+        self.canonical_ids = []
+
+        self.parse_responses()
+
+    def parse_responses(self):
+        """Parse each server response."""
+        for response in self.responses:
+            try:
+                payload = json_loads(response.request.body)
+            except TypeError:
+                payload = {}
+
+            self.payloads.append(payload)
+            registration_ids = payload.get('registration_ids', [])
+
+            if not registration_ids:
+                continue
+
+            self.registration_ids.extend(registration_ids)
+
+            if response.status_code == 200:
+                data = response.json()
+                self.data.append(data)
+                self.parse_results(registration_ids, data.get('results', []))
+            elif response.status_code == 500:
+                for registration_id in registration_ids:
+                    self.add_failure(registration_id, 'InternalServerError')
+
+    def parse_results(self, registration_ids, results):
+        """Parse the results key from the server response into errors,
+        failures, and successes.
+        """
+        for index, result in enumerate(results):
+            registration_id = registration_ids[index]
+
+            if 'error' in result:
+                self.add_failure(registration_id, result['error'])
+            else:
+                self.add_success(registration_id)
+
+            if 'registration_id' in result:
+                self.add_canonical_id(registration_id,
+                                      result['registration_id'])
+
+    def add_success(self, registration_id):
+        """Add `registration_id` to :attr:`successes` list."""
+        self.successes.append(registration_id)
+
+    def add_failure(self, registration_id, error_code):
+        """Add `registration_id` to :attr:`failures` list and exception to errors
+        list.
+        """
+        self.failures.append(registration_id)
+
+        if error_code in gcm_server_errors:
+            self.errors.append(gcm_server_errors[error_code](registration_id))
+
+    def add_canonical_id(self, registration_id, canonical_id):
+        """Add `registration_id` and `canonical_id` to :attr:`canonical_ids`
+        list as tuple.
+        """
+        self.canonical_ids.append((registration_id, canonical_id))
 
 
 def create_payload(registration_ids,
