@@ -62,11 +62,11 @@ class GCMResponse(object):
         for response in self.responses:
             try:
                 payload = json_loads(response.request.body)
-            except TypeError:
-                payload = {}
+            except (TypeError, ValueError):
+                payload = None
 
             self.payloads.append(payload)
-            registration_ids = payload.get('registration_ids', [])
+            registration_ids = (payload or {}).get('registration_ids', [])
 
             if not registration_ids:
                 continue
