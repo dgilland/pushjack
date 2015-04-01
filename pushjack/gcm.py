@@ -33,8 +33,11 @@ class Request(object):
             'Content-Type': 'application/json',
         })
 
-    def __call__(self, data, **options):
-        return self.session.post(self.url, data, **options)
+    def __call__(self, payload):
+        if isinstance(payload, dict):
+            payload = json_dumps(payload)
+
+        return self.session.post(self.url, payload)
 
 
 def create_payload(registration_ids,
@@ -63,7 +66,7 @@ def create_payload(registration_ids,
     if time_to_live is not None:
         payload['time_to_live'] = time_to_live
 
-    return json_dumps(payload)
+    return payload
 
 
 def send(registration_id, data, config, request=None, **options):
