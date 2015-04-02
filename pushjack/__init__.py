@@ -15,9 +15,6 @@ from .__meta__ import (
 from .clients import APNSClient, GCMClient
 
 from .exceptions import (
-    NotificationError,
-    GCMError,
-    GCMAuthError,
     APNSError,
     APNSAuthError,
     APNSServerError,
@@ -30,7 +27,23 @@ from .exceptions import (
     APNSInvalidPayloadSizeError,
     APNSInvalidTokenError,
     APNSShutdownError,
-    APNSUnknownError
+    APNSUnknownError,
+    GCMError,
+    GCMAuthError,
+    GCMServerError,
+    GCMMissingRegistrationError,
+    GCMInvalidRegistrationError,
+    GCMUnregisteredDeviceError,
+    GCMInvalidPackageNameError,
+    GCMMismatchedSenderError,
+    GCMMessageTooBigError,
+    GCMInvalidDataKeyError,
+    GCMInvalidTimeToLiveError,
+    GCMTimeoutError,
+    GCMInternalServerError,
+    GCMDeviceMessageRateExceededError,
+    NotificationError,
+    ServerError,
 )
 
 from .config import (
