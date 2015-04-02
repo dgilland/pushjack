@@ -141,12 +141,12 @@ class APNSClient(Client):
                                       self.config,
                                       **options)
 
-    def get_expired_tokens(self):
+    def get_expired_tokens(self, sock=None):
         """Return list of expired tokens.
 
         Returns:
-            list: List of tuples containing ``(token, timestamp)``.
+            list: List of tuples containing ``(expired_token, timestamp)``.
 
         .. versionadded:: 0.0.1
         """
-        return self.adapter.get_expired_tokens(self.config)
+        return self.adapter.get_expired_tokens(self.config, sock=sock)
