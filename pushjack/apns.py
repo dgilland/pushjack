@@ -171,6 +171,19 @@ def ensure_push_socket(sock, config):
     return (sock, keepalive)
 
 
+def ensure_feedback_socket(sock, config):
+    """Ensures feedback socket connection exists. If it doesn't, create one. Flag
+    whether the socket should be kept alive if we didn't create it.
+    """
+    if not sock:
+        sock = create_feedback_socket(config)
+        keepalive = False
+    else:
+        keepalive = True
+
+    return (sock, keepalive)
+
+
 def error_check(sock, config):
     """Check socket response for errors and raise status based exception if
     found.
@@ -439,17 +452,25 @@ def send_bulk(tokens, alert, config, payload=None, sock=None, **options):
         sock.close()
 
 
-def get_expired_tokens(config):
+def get_expired_tokens(config, sock=None):
     """Return inactive device ids that can't be pushed to anymore.
 
     Args:
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
+        sock (SSLSocket, optional): Provide outside SSL socket connection to
+            APNS server. Socket is assumed to have been preconfigured and ready
+            to use. Default is ``None``.
 
     Returns:
         list: List of tuples containing ``(token, timestamp)``.
 
     .. versionadded:: 0.0.1
     """
-    with closing(create_feedback_socket(config)) as sock:
-        return receive_feedback(sock)
+    sock, keepalive = ensure_feedback_socket(sock, config)
+    expired = receive_feedback(sock)
+
+    if not keepalive:
+        sock.close()
+
+    return expired
