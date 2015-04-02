@@ -4,6 +4,27 @@ Changelog
 =========
 
 
+vx.x.x (xxxx-xx-xx)
+-------------------
+
+- Add ``restricted_package_name`` and ``dry_run`` fields to GCM sending.
+- Add exceptions for all GCM server error responses.
+- Make ``apns.get_expired_tokens`` and ``APNSClient.get_expired_tokens`` accept an optional ``sock`` argument to provide a custom socket connection.
+- Raise ``APNSAuthError`` instead of ``APNSError`` if certificate file cannot be read.
+- Raise ``APNSInvalidPayloadSizeError`` instead of ``APNSDataOverflow``. (**breaking change**)
+- Raise ``APNSInvalidTokenError`` instead of ``APNSError``.
+- Raise ``GCMAuthError`` if ``GCM_API_KEY`` is not set.
+- Rename several function parameters:  (**breaking change**)
+
+    - GCM: ``alert`` to ``data``
+    - GCM: ``token``/``tokens`` to ``registration_id``/``registration_ids``
+    - GCM: ``Dispatcher``/``dispatcher`` to ``GCMRequest``/``request``
+    - Clients: ``registration_id`` to ``device_id``
+
+- Return ``GCMResponse`` object for ``GCMClient.send/send_bulk``. (**breaking change**)
+- Return ``requests.Response`` object(s) for ``gcm.send/send_bulk``. (**breaking change**)
+
+
 v0.2.2 (2015-03-30)
 -------------------
 
