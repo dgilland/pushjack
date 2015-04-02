@@ -1,7 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Apple Push Notification Service
+"""Lower level module for Apple Push Notification service.
 
-Documentation is available on the iOS Developer Library: http://goo.gl/wFVr2S
+This module is meant to provide basic functionality for sending push
+notifications. Error handling is very naive. If a socket connection is
+provided to the send functions, then no error checking will take place and the
+socket will not be closed. It's up to the caller to implement. If no socket
+connection is provided, then one will be created and error handling will be
+very optimistic.
+
+In the case of a single push, errors will be check after sending and raised
+if found. This behavior shouldn't pose any issues. However, in the case of bulk
+pushes, error checking will only happen after all notifications have been sent.
+This is less than ideal but an improved error algorithm is left to consumers of
+the service to implement.
+
+Apple's documentation for APNS is available at:
+
+- http://goo.gl/wFVr2S
 """
 
 from binascii import hexlify, unhexlify
@@ -332,7 +347,7 @@ def send(token,
             APNS server. Socket is assumed to have been preconfigured and ready
             to use. When `sock` is provided, no error checking is done;
             it's assumed that the socket provider will handle that. Default is
-            ``None.
+            ``None``.
 
     Keyword Args:
         badge (int, optional): Badge number count for alert. Defaults to
@@ -366,6 +381,14 @@ def send(token,
         APNSInvalidTokenError: Invalid token format.
         APNSInvalidPayloadSizeError: Notification payload size too large.
         APNSServerError: APNS error response from server.
+
+    Warning:
+        It is not recommended to use this function to send bulk notifications
+        **unless** you provide your own socket connection. Without a provided
+        socket connection, this function will open and close a new socket
+        connection for each send. This can result in the APNS network treating
+        those repeated connections as a DoS (denial-of-service) attack and
+        cause further connections to be blocked.
 
     .. versionadded:: 0.0.1
     """
@@ -420,7 +443,7 @@ def send_bulk(tokens, alert, config, payload=None, sock=None, **options):
             APNS server. Socket is assumed to have been preconfigured and ready
             to use. When `sock` is provided, no error checking is done;
             it's assumed that the socket provider will handle that. Default is
-            ``None.
+            ``None``.
 
     Returns:
         None

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Client wrappers for push notification services.
+"""Client wrappers for push notification services that provide a higher level
+of abstration over the underlying lower-level service module.
 """
 
 from . import apns
@@ -42,10 +43,10 @@ class GCMClient(Client):
             data (str|dict): Notification data to send.
 
         Keyword Args:
-            See push notification service's module for more details.
+            See service module for more details.
 
         Returns:
-            :class:`pushjack.gcm.Response`
+            :class:`pushjack.gcm.GCMResponse`
 
         See Also:
             :func:`pushjack.gcm.send`
@@ -67,10 +68,10 @@ class GCMClient(Client):
             data (str|dict): Notification data to send.
 
         Keyword Args:
-            See push notification service's module for more details.
+            See service module for more details.
 
         Returns:
-            :class:`pushjack.gcm.BulkResponse`
+            :class:`pushjack.gcm.GCMResponse`
 
         See Also:
             :func:`pushjack.gcm.send_bulk`
@@ -102,7 +103,7 @@ class APNSClient(Client):
             data (str|dict): Notification data to send.
 
         Keyword Args:
-            See push notification service's module for more details.
+            See service module for more details.
 
         Returns:
             None
@@ -125,13 +126,13 @@ class APNSClient(Client):
             data (str|dict): Notification data to send.
 
         Keyword Args:
-            See push notification service's module for more details.
+            See service module for more details.
 
         Returns:
             None
 
         See Also:
-            :func:`pushjack.gcm.send_bulk`
+            :func:`pushjack.apns.send_bulk`
 
         .. versionadded:: 0.0.1
         """

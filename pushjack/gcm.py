@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Google Cloud Messaging service
+"""Lower level module for Google Cloud Messaging service.
 
-Documentation is available on the Android Developer website:
+This module is meant to provide basic functionality for sending push
+notifications. The send functions don't try to do anything with the GCM server
+responses other than return them as is. There is no exception handling of those
+responses so error processing will need to be handled by the caller.
+
+Google's documentation for GCM is available at:
 
 - https://developer.android.com/google/gcm/index.html
 - https://developer.android.com/google/gcm/server-ref.html
@@ -39,20 +44,32 @@ class GCMRequest(object):
 
 
 class GCMResponse(object):
-    """GCM server response with results parsed into errors, failures, and
-    canonical IDs.
+    """GCM server response with results parsed into :attr:`responses`,
+    :attr:`payloads`, :attr:`registration_ids`, :attr:`data`,
+    :attr:`successes`, :attr:`failures`, :attr:`errors`, and
+    :attr:`canonical_ids`.
     """
     def __init__(self, responses):
         if not isinstance(responses, (list, tuple)):
             responses = [responses]
 
+        #: List of ``request.Response`` objects from each GCM request.
         self.responses = responses
+        #: List of payload data sent in each GCM request.
         self.payloads = []
+        #: Combined list of all recipient registration IDs.
         self.registration_ids = []
+        #: List of each GCM server response data.
         self.data = []
-        self.errors = []
+        #: List of registration IDs that were sent successfully.
         self.successes = []
+        #: List of registration IDs that failed.
         self.failures = []
+        #: List of exception objects correponding to the registration IDs that
+        #: were not sent successfully. See :mod:`pushjack.exceptions`.
+        self.errors = []
+        #: List of registration IDs that have been reassigned a new ID. Each
+        #: element is a tuple containing ``(old_id, new_id)``.
         self.canonical_ids = []
 
         self.parse_responses()
