@@ -4,7 +4,7 @@ Changelog
 =========
 
 
-vx.x.x (xxxx-xx-xx)
+v0.3.0 (2015-04-01)
 -------------------
 
 - Add ``restricted_package_name`` and ``dry_run`` fields to GCM sending.
