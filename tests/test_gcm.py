@@ -115,8 +115,9 @@ def test_gcm_send_bulk(gcm_client, tokens, data, extra, payload):
         assert res.canonical_ids == []
 
 
-@parametrize('tokens,results,expected', [
+@parametrize('tokens,status_code,results,expected', [
     ([1, 2, 3, 4, 5],
+     200,
      [{'error': 'MissingRegistration'},
       {'message_id': 2},
       {'error': 'DeviceMessageRateExceeded'},
@@ -128,10 +129,22 @@ def test_gcm_send_bulk(gcm_client, tokens, data, extra, payload):
       'failures': [1, 3],
       'successes': [2, 4, 5],
       'canonical_ids': [(4, 44), (5, 55)]}),
+    ([1, 2, 3, 4, 5],
+     500,
+     [],
+     {'registration_ids': [1, 2, 3, 4, 5],
+      'errors': [(exceptions.GCMInternalServerError, 1),
+                 (exceptions.GCMInternalServerError, 2),
+                 (exceptions.GCMInternalServerError, 3),
+                 (exceptions.GCMInternalServerError, 4),
+                 (exceptions.GCMInternalServerError, 5)],
+      'failures': [1, 2, 3, 4, 5],
+      'successes': [],
+      'canonical_ids': []}),
 ])
-def test_gcm_response(gcm_client, tokens, results, expected):
+def test_gcm_response(gcm_client, tokens, status_code, results, expected):
     content = {'results': results}
-    response = gcm_server_response_factory(content)
+    response = gcm_server_response_factory(content, status_code)
 
     with httmock.HTTMock(response):
         res = gcm_client.send_bulk(tokens, {})

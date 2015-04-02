@@ -49,11 +49,16 @@ def apns_sock():
     return sock
 
 
-def gcm_server_response_factory(content):
+def gcm_server_response_factory(content, status_code=200):
     @httmock.all_requests
     def response(url, request):
         headers = {'content-type': 'application/json'}
-        return httmock.response(200, content, headers, None, 1, request)
+        return httmock.response(status_code,
+                                content,
+                                headers,
+                                None,
+                                1,
+                                request)
     return response
 
 
