@@ -4,7 +4,7 @@
 Documentation is available on the iOS Developer Library: http://goo.gl/wFVr2S
 """
 
-from binascii import unhexlify
+from binascii import hexlify, unhexlify
 from contextlib import closing
 from functools import partial
 import socket
@@ -188,9 +188,9 @@ def error_check(sock, config):
         data = sock.recv(6)
 
         if data:
-            command, status, identifier = struct.unpack("!BBI", data)
+            command, status, identifier = struct.unpack('!BBI', data)
 
-            if command != APNS_ERROR_RESPONSE_COMMAND:
+            if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
                 raise APNSError(('Error response command must be {0}. '
                                  'Found: {1}'
                                  .format(APNS_ERROR_RESPONSE_COMMAND,
@@ -262,7 +262,7 @@ def receive_feedback(sock):
                                                '{0}s'.format(token_length))
 
                 if device_token is not None:
-                    token = device_token[0].encode('hex')
+                    token = hexlify(device_token[0]).decode('utf8')
                     expired_tokens.append((token, timestamp))
             else:
                 has_data = False
