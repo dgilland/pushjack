@@ -5,6 +5,39 @@
 from ._compat import iteritems
 
 
+__all__ = (
+    'APNSError',
+    'APNSAuthError',
+    'APNSServerError',
+    'APNSProcessingError',
+    'APNSMissingTokenError',
+    'APNSMissingTopicError',
+    'APNSMissingPayloadError',
+    'APNSInvalidTokenSizeError',
+    'APNSInvalidTopicSizeError',
+    'APNSInvalidPayloadSizeError',
+    'APNSInvalidTokenError',
+    'APNSShutdownError',
+    'APNSUnknownError',
+    'GCMError',
+    'GCMAuthError',
+    'GCMServerError',
+    'GCMMissingRegistrationError',
+    'GCMInvalidRegistrationError',
+    'GCMUnregisteredDeviceError',
+    'GCMInvalidPackageNameError',
+    'GCMMismatchedSenderError',
+    'GCMMessageTooBigError',
+    'GCMInvalidDataKeyError',
+    'GCMInvalidTimeToLiveError',
+    'GCMTimeoutError',
+    'GCMInternalServerError',
+    'GCMDeviceMessageRateExceededError',
+    'NotificationError',
+    'ServerError',
+)
+
+
 class NotificationError(Exception):
     """Base exception for all notification errors."""
     code = None
