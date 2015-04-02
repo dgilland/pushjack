@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import binascii
 import struct
+import time
 
 import pytest
 import httmock
@@ -46,6 +48,25 @@ def apns_sock():
     """Return mock for APNS socket client."""
     sock = mock.MagicMock()
     sock.recv = lambda n: ''
+    return sock
+
+
+def apns_feedback_socket_factory(tokens):
+    data = {'stream': b''}
+
+    for token in tokens:
+        token = binascii.unhexlify(token)
+        data['stream'] += struct.pack('!LH', int(time.time()), len(token))
+        data['stream'] += struct.pack('{0}s'.format(len(token)), token)
+
+    def recv(n):
+        out = data['stream'][:n]
+        data['stream'] = data['stream'][n:]
+        return out
+
+    sock = mock.MagicMock()
+    sock.recv = recv
+
     return sock
 
 

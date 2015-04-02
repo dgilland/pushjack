@@ -1,21 +1,31 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+
 import mock
 import pytest
 
 from pushjack import (
     APNSClient,
     APNSError,
+    APNSAuthError,
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
     APNSConfig,
+    apns,
     create_apns_config,
     create_apns_sandbox_config,
     exceptions
 )
 from pushjack.utils import json_dumps
 
-from .fixtures import apns_client, apns_sock, apns_socket_factory, parametrize
+from .fixtures import (
+    apns_client,
+    apns_feedback_socket_factory,
+    apns_sock,
+    apns_socket_factory,
+    parametrize
+)
 
 
 test_token = '1' * 64
@@ -231,6 +241,52 @@ def test_apns_error_handling(apns_client, code, exception):
         create_push_socket.return_value = exception_sock
         with pytest.raises(exception):
             apns_client.send(test_token, '')
+
+
+@parametrize('tokens', [
+    ['1' * 64, '2' * 64, '3' * 64],
+])
+def test_apns_receive_feedback(apns_client, tokens):
+    sock = apns_feedback_socket_factory(tokens)
+    expired_tokens = apns_client.get_expired_tokens(sock)
+
+    assert len(expired_tokens) == len(tokens)
+
+    for i, token in enumerate(tokens):
+        expired_token, timestamp = expired_tokens[i]
+
+        assert expired_token == token
+        assert (datetime.datetime.utcfromtimestamp(timestamp) <
+                datetime.datetime.utcnow())
+
+
+def test_apns_create_socket(tmpdir):
+    certfile = tmpdir.join('certifiate.pem')
+    certfile.write('content')
+
+    with mock.patch('ssl.wrap_socket') as wrap_socket:
+        sock = apns.create_socket('localhost', 5000, str(certfile))
+
+        assert wrap_socket.called
+        assert wrap_socket.mock_calls[0][2] == {'ssl_version': 3,
+                                                'certfile': str(certfile)}
+
+
+def test_apns_create_socket_missing_certfile():
+    with pytest.raises(APNSAuthError):
+        apns.create_socket('localhost', 5000, 'missing.pem')
+
+
+def test_apns_create_socket_no_certfile():
+    with pytest.raises(APNSAuthError):
+        apns.create_socket('localhost', 5000, None)
+
+
+def test_apns_create_socket_empty_certfile(tmpdir):
+    certfile = tmpdir.join('certificate.pem')
+
+    with pytest.raises(APNSAuthError):
+        apns.create_socket('localhost', 5000, str(certfile))
 
 
 def test_apns_config():
