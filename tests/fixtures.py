@@ -71,7 +71,7 @@ def apns_feedback_socket_factory(tokens):
 
 
 @contextmanager
-def apns_create_socket(connect=('localhost', 8080)):
+def apns_create_socket(connect=('0.0.0.0', 8080)):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
         create_socket.return_value = apns_socket_factory(connect)
         yield create_socket
