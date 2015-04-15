@@ -219,32 +219,29 @@ class Raiser(object):
     and exception code.
     """
     prefix = None
-    base_exception = None
+    fallback_exception = None
 
     def __init__(self, mapping):
         self.mapping = mapping
 
-    def __call__(self, code, *args, **kargs):
-        if not isinstance(code, int) and not args and not kargs:
-            # pylint: disable=not-callable
-            raise self.base_exception(code)  # pragma: no cover
-
+    def __call__(self, code, identifier):
         if code not in self.mapping:  # pragma: no cover
-            raise LookupError('No server exception for {0}'.format(code))
+            # pylint: disable=not-callable
+            raise self.fallback_exception(identifier)
 
-        raise self.mapping[code](*args, **kargs)
+        raise self.mapping[code](identifier)
 
 
 class GCMServerRaiser(Raiser):
     """Exception raiser classs for GCM server errors."""
     prefix = 'GCM'
-    base_exception = GCMServerError
+    fallback_exception = GCMServerError
 
 
 class APNSServerRasier(Raiser):
     """Exception raiser class for APNS errors."""
     prefix = 'APNS'
-    base_exception = APNSServerError
+    fallback_exception = APNSUnknownError
 
 
 def map_errors(prefix):
