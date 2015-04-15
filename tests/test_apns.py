@@ -205,7 +205,7 @@ def test_apns_create_socket(tmpdir):
     with mock.patch('ssl.wrap_socket') as wrap_socket:
         wrap_socket.do_handshake = lambda: True
 
-        sock = apns.create_socket('0.0.0.0', 8080, str(certfile))
+        sock = apns.create_socket('0.0.0.0', 12345, str(certfile))
 
         assert wrap_socket.called
 
@@ -218,19 +218,19 @@ def test_apns_create_socket(tmpdir):
 
 def test_apns_create_socket_missing_certfile():
     with pytest.raises(APNSAuthError):
-        apns.create_socket('0.0.0.0', 8080, 'missing.pem')
+        apns.create_socket('0.0.0.0', 12345, 'missing.pem')
 
 
 def test_apns_create_socket_no_certfile():
     with pytest.raises(APNSAuthError):
-        apns.create_socket('0.0.0.0', 8080, None)
+        apns.create_socket('0.0.0.0', 12345, None)
 
 
 def test_apns_create_socket_empty_certfile(tmpdir):
     certfile = tmpdir.join('certificate.pem')
 
     with pytest.raises(APNSAuthError):
-        apns.create_socket('0.0.0.0', 8080, str(certfile))
+        apns.create_socket('0.0.0.0', 12345, str(certfile))
 
 
 def test_apns_config():
