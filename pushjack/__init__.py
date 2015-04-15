@@ -12,7 +12,14 @@ from .__meta__ import (
     __license__
 )
 
-from .clients import APNSClient, GCMClient
+from .apns import (
+    APNSExpiredToken,
+)
+
+from .clients import (
+    APNSClient,
+    GCMClient,
+)
 
 from .exceptions import (
     APNSError,
@@ -44,6 +51,11 @@ from .exceptions import (
     GCMDeviceMessageRateExceededError,
     NotificationError,
     ServerError,
+)
+
+from .gcm import (
+    GCMCanonicalID,
+    GCMResponse,
 )
 
 from .config import (
