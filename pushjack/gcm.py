@@ -143,9 +143,9 @@ class GCMResponse(object):
         self.errors = []
         self.canonical_ids = []
 
-        self.parse_responses()
+        self._parse_responses()
 
-    def parse_responses(self):
+    def _parse_responses(self):
         """Parse each server response."""
         for response in self.responses:
             try:
@@ -164,12 +164,12 @@ class GCMResponse(object):
             if response.status_code == 200:
                 data = response.json()
                 self.data.append(data)
-                self.parse_results(registration_ids, data.get('results', []))
+                self._parse_results(registration_ids, data.get('results', []))
             elif response.status_code == 500:
                 for registration_id in registration_ids:
-                    self.add_failure(registration_id, 'InternalServerError')
+                    self._add_failure(registration_id, 'InternalServerError')
 
-    def parse_results(self, registration_ids, results):
+    def _parse_results(self, registration_ids, results):
         """Parse the results key from the server response into errors,
         failures, and successes.
         """
@@ -177,19 +177,19 @@ class GCMResponse(object):
             registration_id = registration_ids[index]
 
             if 'error' in result:
-                self.add_failure(registration_id, result['error'])
+                self._add_failure(registration_id, result['error'])
             else:
-                self.add_success(registration_id)
+                self._add_success(registration_id)
 
             if 'registration_id' in result:
-                self.add_canonical_id(registration_id,
-                                      result['registration_id'])
+                self._add_canonical_id(registration_id,
+                                       result['registration_id'])
 
-    def add_success(self, registration_id):
+    def _add_success(self, registration_id):
         """Add `registration_id` to :attr:`successes` list."""
         self.successes.append(registration_id)
 
-    def add_failure(self, registration_id, error_code):
+    def _add_failure(self, registration_id, error_code):
         """Add `registration_id` to :attr:`failures` list and exception to
         errors list.
         """
@@ -198,7 +198,7 @@ class GCMResponse(object):
         if error_code in gcm_server_errors:
             self.errors.append(gcm_server_errors[error_code](registration_id))
 
-    def add_canonical_id(self, registration_id, canonical_id):
+    def _add_canonical_id(self, registration_id, canonical_id):
         """Add `registration_id` and `canonical_id` to :attr:`canonical_ids`
         list as tuple.
         """
