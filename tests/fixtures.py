@@ -3,10 +3,16 @@
 import binascii
 from contextlib import contextmanager
 import socket
-import SocketServer
 import struct
 import threading
 import time
+
+try:
+    # py3
+    import socketserver
+except ImportError:
+    # py2
+    import SocketServer as socketserver
 
 import pytest
 import httmock
@@ -32,12 +38,12 @@ TCP_PORT = 12345
 TCP_CONNECT = (TCP_HOST, TCP_PORT)
 
 
-class TCPHandler(SocketServer.BaseRequestHandler):
+class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         self.data = self.request.recv(4096)
 
 
-class TCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class TCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
 

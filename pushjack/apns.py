@@ -164,7 +164,7 @@ class APNSFeedbackStream(object):
     def __iter__(self):
         """Iterate through and yield expired device tokens."""
         header_format = '!LH'
-        buff = ''
+        buff = b''
 
         for chunk in self.conn.readstream(4096):
             buff += chunk
@@ -176,13 +176,12 @@ class APNSFeedbackStream(object):
                 break
 
             while len(buff) > APNS_FEEDBACK_HEADER_LEN:
-                timestamp, token_len = struct.unpack_from(header_format,
-                                                          buff[:6])
+                timestamp, token_len = struct.unpack(header_format, buff[:6])
                 bytes_to_read = APNS_FEEDBACK_HEADER_LEN + token_len
 
                 if len(buff) >= bytes_to_read:
-                    token = struct.unpack_from('{0}s'.format(token_len),
-                                               buff[6:bytes_to_read])
+                    token = struct.unpack('{0}s'.format(token_len),
+                                          buff[6:bytes_to_read])
                     token = hexlify(token[0]).decode('utf8')
 
                     yield APNSExpiredToken(token, timestamp)
@@ -281,8 +280,7 @@ class APNSConnection(object):
             return
 
         data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
-
-        command = struct.unpack('>B', data[0])[0]
+        command = struct.unpack('>B', data[:1])[0]
 
         if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
             self.close()
