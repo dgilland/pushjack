@@ -10,6 +10,7 @@ Guide
     :maxdepth: 2
 
     install
+    upgrading
 
 
 API Reference

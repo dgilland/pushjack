@@ -4,6 +4,22 @@ Changelog
 =========
 
 
+v0.4.0 (xxxx-xx-xx)
+-------------------
+
+- Improve error handling in APNS so that errors aren't missed.
+- Improve handling of APNS socket connection during bulk sending so that connection is re-established when lost.
+- Make APNS socket read/writes non-blocking.
+- Make APNS socket frame packing easier to grok.
+- Remove APNS and GCM ``send_bulk`` function. Modify ``send`` to support bulk notifications. (**breaking change**)
+- Remove ``APNS_MAX_NOTIFICATION_SIZE`` as config option.
+- Remove ``GCM_MAX_RECIPIENTS`` as config option.
+- Remove ``request`` argument from GCM send function. (**breaking change**)
+- Remove ``sock`` argument from APNS send function. (**breaking change**)
+- Return namedtuple for GCM canonical ids.
+- Return namedtuple class for APNS expired tokens.
+
+
 v0.3.0 (2015-04-01)
 -------------------
 

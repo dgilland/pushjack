@@ -19,6 +19,14 @@ Links
 Quickstart
 ==========
 
+Install using pip:
+
+
+::
+
+    pip install pushjack
+
+
 Whether using ``APNS`` or ``GCM``, pushjack provides a common API interface for each.
 
 
@@ -57,9 +65,8 @@ Using the ``APNSClient`` class:
                 launch_image='path/to/image.jpg',
                 extra={'custom': 'data'})
 
-    # Send to multiple devices.
-    # Accepts the same keyword arguments as send().
-    client.send_bulk(tokens, alert, **options)
+    # Send to multiple devices by passing a list of tokens.
+    client.send([token], alert, **options)
 
     # Get expired tokens.
     expired = client.get_expired_tokens()
@@ -72,9 +79,9 @@ Using the APNS module directly:
 
     from pushjack import apns
 
-    # Call signature is the same as APNSClient.
-    apns.send(token, alert, **options)
-    apns.send_bulk(token, alert, **options)
+    # Call signature is the same as APNSClient
+    # except the configuration must be passed in.
+    apns.send(token, alert, config, **options)
 
 
 GCM
@@ -94,7 +101,7 @@ Using the ``GCMClient`` class:
     client = GCMClient(config)
 
     registration_id = '<registration id>'
-    data = {'message': 'Hello world.'}
+    alert = 'Hello world.'
 
     # Send to single device.
     # Keyword arguments are optional.
@@ -104,9 +111,8 @@ Using the ``GCMClient`` class:
                 delay_while_idle=True,
                 time_to_live=100)
 
-    # Send to multiple devices.
-    # Accepts the same keyword arguments as send().
-    client.send_bulk(tokens, data, **options)
+    # Send to multiple devices by passing a list of ids
+    client.send([registration_id], alert, **options)
 
 
 Using the GCM module directly:
@@ -116,9 +122,9 @@ Using the GCM module directly:
 
     from pushjack import gcm
 
-    # Call signature is the same as GCMClient.
-    gcm.send(token, alert, **options)
-    gcm.send_bulk(token, alert, **options)
+    # Call signature is the same as GCMClient
+    # except the configuration must be passed in.
+    gcm.send(token, alert, config, **options)
 
 
 Config
@@ -131,8 +137,7 @@ The config object for configuring a client is expected to be a ``dict`` or subcl
 
     gcm_config = {
         'GCM_API_KEY': '<api key>',
-        'GCM_URL': 'https://android.googleapis.com/gcm/send',
-        'GCM_MAX_RECIPIENTS': 1000
+        'GCM_URL': 'https://android.googleapis.com/gcm/send'
     }
 
     apns_config = {
@@ -143,7 +148,6 @@ The config object for configuring a client is expected to be a ``dict`` or subcl
         'APNS_FEEDBACK_PORT': 2196,
         'APNS_ERROR_TIMEOUT': 0.5,
         'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30
-        'APNS_MAX_NOTIFICATION_SIZE': 2048
     }
 
 

@@ -8,8 +8,8 @@ responses so error processing will need to be handled by the caller.
 
 Google's documentation for GCM is available at:
 
-- https://developer.android.com/google/gcm/index.html
-- https://developer.android.com/google/gcm/server-ref.html
+- `GCM for Android <http://goo.gl/swDCy>`_
+- `GCM Server Reference <http://goo.gl/GPjNwV>`_
 """
 
 from collections import namedtuple
@@ -22,6 +22,8 @@ from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 __all__ = (
     'send',
+    'GCMCanonicalID',
+    'GCMResponse',
 )
 
 
@@ -29,7 +31,15 @@ __all__ = (
 GCM_MAX_RECIPIENTS = 1000
 
 
-GCMCanonicalID = namedtuple('GCMCanonicalID', ['old_id', 'new_id'])
+class GCMCanonicalID(namedtuple('GCMCanonicalID', ['old_id', 'new_id'])):
+    """Represents a canonical ID returned by the GCM Server. This object
+    indicates that a previously registered ID has changed to a new one.
+
+    Attributes:
+        old_id (str): Previously registered ID.
+        new_id (str): New registration ID that should replace :attr:`old_id`.
+    """
+    pass
 
 
 class GCMPayload(object):
@@ -103,28 +113,34 @@ class GCMResponse(object):
     :attr:`payloads`, :attr:`registration_ids`, :attr:`data`,
     :attr:`successes`, :attr:`failures`, :attr:`errors`, and
     :attr:`canonical_ids`.
+
+    Attributes:
+        responses (list): List of ``request.Response`` objects from each GCM
+            request.
+        payloads (list): List of payload data sent in each GCM request.
+        registration_ids (list): Combined list of all recipient registration
+            IDs.
+        data (list): List of each GCM server response data.
+        successes (list): List of registration IDs that were sent successfully.
+        failures (list): List of registration IDs that failed.
+        errors (list): List of exception objects correponding to the
+            registration IDs that ere not sent successfully. See
+            :mod:`pushjack.exceptions`.
+        canonical_ids (list): List of registration IDs that have been
+            reassigned a new ID. Each element is an instance of
+            :class:`GCMCanonicalID`.
     """
     def __init__(self, responses):
         if not isinstance(responses, (list, tuple)):  # pragma: no cover
             responses = [responses]
 
-        #: List of ``request.Response`` objects from each GCM request.
         self.responses = responses
-        #: List of payload data sent in each GCM request.
         self.payloads = []
-        #: Combined list of all recipient registration IDs.
         self.registration_ids = []
-        #: List of each GCM server response data.
         self.data = []
-        #: List of registration IDs that were sent successfully.
         self.successes = []
-        #: List of registration IDs that failed.
         self.failures = []
-        #: List of exception objects correponding to the registration IDs that
-        #: were not sent successfully. See :mod:`pushjack.exceptions`.
         self.errors = []
-        #: List of registration IDs that have been reassigned a new ID. Each
-        #: element is a tuple containing ``(old_id, new_id)``.
         self.canonical_ids = []
 
         self.parse_responses()
@@ -223,9 +239,15 @@ def send(ids, alert, config, **options):
 
     Raises:
         GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
-        GCMError: If GCM server response indicates failure.
+        GCMServerError: If GCM server response indicates failure. See
+            :mod:`pushjack.exceptions` for full listing.
 
     .. versionadded:: 0.0.1
+
+    .. versionchanged:: 0.4.0
+
+        - Added support for bulk sending.
+        - Removed `request` argument.
     """
     if not config['GCM_API_KEY']:
         raise GCMAuthError('Missing GCM API key. Cannot send notifications.')

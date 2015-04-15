@@ -1,12 +1,11 @@
 .. _api:
 
-*************
 API Reference
-*************
+=============
 
 
 Clients
-=======
+-------
 
 .. automodule:: pushjack.clients
 
@@ -20,31 +19,28 @@ Clients
 
 
 APNS
-====
+----
 
 .. automodule:: pushjack.apns
     :members:
 
 
 GCM
-===
+---
 
 .. automodule:: pushjack.gcm
     :members:
 
-.. autoclass:: pushjack.gcm.GCMResponse
-    :members: responses, payloads, registration_ids, data, successes, failures, errors, canonical_ids
-
 
 Configuration
-=============
+-------------
 
 .. automodule:: pushjack.config
     :members:
 
 
 Exceptions
-==========
+----------
 
 .. automodule:: pushjack.exceptions
     :members:

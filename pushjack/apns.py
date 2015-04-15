@@ -12,8 +12,8 @@ read and write on the socket.
 
 Apple's documentation for APNS is available at:
 
-- http://goo.gl/qMfByr
-- http://goo.gl/wFVr2S
+- `Apple Push Notification Service <http://goo.gl/wFVr2S>`_
+- `Provider Communication with APNS <http://goo.gl/qMfByr>`_
 """
 
 from binascii import hexlify, unhexlify
@@ -38,6 +38,7 @@ from .exceptions import (
 __all__ = (
     'send',
     'get_expired_tokens',
+    'APNSExpiredToken',
 )
 
 
@@ -55,7 +56,14 @@ APNS_FEEDBACK_HEADER_LEN = 6
 APNS_MAX_NOTIFICATION_SIZE = 2048
 
 
-APNSExpiredToken = namedtuple('APNSExpiredToken', ['token', 'timestamp'])
+class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
+    """Represents an expired APNS token with the timestamp of when it expired.
+
+    Attributes:
+        token (str): Expired APNS token.
+        timestamp (int): Epoch timestamp.
+    """
+    pass
 
 
 class APNSPayload(object):
@@ -130,7 +138,7 @@ class APNSPayload(object):
         return json_dumps(self.to_dict())
 
     def __len__(self):
-        """Return length of payload."""
+        """Return length of serialized payload."""
         return len(self.to_json())
 
 
@@ -479,9 +487,16 @@ def send(ids,
     Raises:
         APNSInvalidTokenError: Invalid token format.
         APNSInvalidPayloadSizeError: Notification payload size too large.
-        APNSServerError: APNS error response from server.
+        APNSServerError: APNS error response from server. See
+            :mod:`pushjack.exceptions` for full listing.
 
     .. versionadded:: 0.0.1
+
+    .. versionchanged:: 0.4.0
+
+        - Added support for bulk sending.
+        - Made sending and error checking non-blocking.
+        - Removed `sock`, `payload`, and `identifer` arguments.
     """
     if not isinstance(ids, (list, tuple)):
         ids = [ids]
