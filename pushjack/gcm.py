@@ -12,16 +12,73 @@ Google's documentation for GCM is available at:
 - https://developer.android.com/google/gcm/server-ref.html
 """
 
+from collections import namedtuple
+
 import requests
 
-from .utils import chunk, json_loads, json_dumps
+from .utils import chunk, compact_dict, json_loads, json_dumps
 from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 
 __all__ = (
     'send',
-    'send_bulk',
 )
+
+
+# GCM only allows up to 1000 reg ids per bulk message.
+GCM_MAX_RECIPIENTS = 1000
+
+
+GCMCanonicalID = namedtuple('GCMCanonicalID', ['old_id', 'new_id'])
+
+
+class GCMPayload(object):
+    """GCM payload object that serializes to JSON."""
+    def __init__(self,
+                 registration_ids,
+                 alert,
+                 collapse_key=None,
+                 delay_while_idle=None,
+                 time_to_live=None,
+                 restricted_package_name=None,
+                 dry_run=None):
+        self.registration_ids = registration_ids
+        self.alert = alert
+        self.collapse_key = collapse_key
+        self.delay_while_idle = delay_while_idle
+        self.time_to_live = time_to_live
+        self.restricted_package_name = restricted_package_name
+        self.dry_run = dry_run
+
+    def to_dict(self):
+        """Return payload as dictionary."""
+        return compact_dict({
+            'registration_ids': self.registration_ids,
+            'data': (self.alert if isinstance(self.alert, dict)
+                     else {'message': self.alert}),
+            'collapse_key': self.collapse_key,
+            'delay_while_idle': self.delay_while_idle,
+            'time_to_live': self.time_to_live,
+            'restricted_package_name': self.restricted_package_name,
+            'dry_run': True if self.dry_run else None
+        })
+
+    def to_json(self):
+        """Return payload as JSON string."""
+        return json_dumps(self.to_dict())
+
+
+class GCMPayloadStream(object):
+    """Iterable object that yields GCM payloads in chunks."""
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __iter__(self):
+        """Iterate through and yield chunked payloads."""
+        for ids in chunk(self.payload.registration_ids, GCM_MAX_RECIPIENTS):
+            payload = self.payload.to_dict()
+            payload['registration_ids'] = ids
+            yield json_dumps(payload)
 
 
 class GCMRequest(object):
@@ -36,11 +93,9 @@ class GCMRequest(object):
             'Content-Type': 'application/json',
         })
 
-    def __call__(self, payload):
-        if isinstance(payload, dict):
-            payload = json_dumps(payload)
-
-        return self.session.post(self.url, payload)
+    def send(self, payloads):
+        """Send payloads to GCM server and return list of responses."""
+        return [self.session.post(self.url, payload) for payload in payloads]
 
 
 class GCMResponse(object):
@@ -50,7 +105,7 @@ class GCMResponse(object):
     :attr:`canonical_ids`.
     """
     def __init__(self, responses):
-        if not isinstance(responses, (list, tuple)):
+        if not isinstance(responses, (list, tuple)):  # pragma: no cover
             responses = [responses]
 
         #: List of ``request.Response`` objects from each GCM request.
@@ -119,8 +174,8 @@ class GCMResponse(object):
         self.successes.append(registration_id)
 
     def add_failure(self, registration_id, error_code):
-        """Add `registration_id` to :attr:`failures` list and exception to errors
-        list.
+        """Add `registration_id` to :attr:`failures` list and exception to
+        errors list.
         """
         self.failures.append(registration_id)
 
@@ -131,52 +186,16 @@ class GCMResponse(object):
         """Add `registration_id` and `canonical_id` to :attr:`canonical_ids`
         list as tuple.
         """
-        self.canonical_ids.append((registration_id, canonical_id))
+        self.canonical_ids.append(GCMCanonicalID(registration_id,
+                                                 canonical_id))
 
 
-def create_payload(registration_ids,
-                   data,
-                   collapse_key=None,
-                   delay_while_idle=None,
-                   time_to_live=None,
-                   restricted_package_name=None,
-                   dry_run=None):
-    """Return notification payload in JSON format."""
-    if not isinstance(registration_ids, (list, tuple)):
-        registration_ids = [registration_ids]
-
-    payload = {'registration_ids': registration_ids}
-
-    if not isinstance(data, dict):
-        data = {'message': data}
-
-    if data is not None:
-        payload['data'] = data
-
-    if collapse_key is not None:
-        payload['collapse_key'] = collapse_key
-
-    if delay_while_idle is not None:
-        payload['delay_while_idle'] = delay_while_idle
-
-    if time_to_live is not None:
-        payload['time_to_live'] = time_to_live
-
-    if restricted_package_name is not None:
-        payload['restricted_package_name'] = restricted_package_name
-
-    if dry_run:
-        payload['dry_run'] = True
-
-    return payload
-
-
-def send(registration_id, data, config, request=None, **options):
-    """Sends a GCM notification to a single registration ID.
+def send(ids, alert, config, **options):
+    """Sends a GCM notification to one or more IDs.
 
     Args:
-        registration_id (str): GCM device registration ID.
-        data (str|dict): Alert message or dictionary.
+        id_ (str): GCM device registration ID.
+        alert (str|dict): Alert message or dictionary.
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
         request (callable, optional): Callable object that makes POST request
@@ -211,45 +230,11 @@ def send(registration_id, data, config, request=None, **options):
     if not config['GCM_API_KEY']:
         raise GCMAuthError('Missing GCM API key. Cannot send notifications.')
 
-    if request is None:
-        request = GCMRequest(config)
+    if not isinstance(ids, (list, tuple)):
+        ids = [ids]
 
-    payload = create_payload(registration_id, data, **options)
-    return request(payload)
+    request = GCMRequest(config)
+    payload = GCMPayload(ids, alert, **options)
+    responses = request.send(GCMPayloadStream(payload))
 
-
-def send_bulk(registration_ids, data, config, request=None, **options):
-    """Sends a GCM notification to one or more registration_ids.
-
-    Args:
-        registration_ids (list): List of GCM registration IDs.
-        data (str|dict): Alert message or dictionary.
-        config (dict): Configuration dictionary containing APNS configuration
-            values. See :mod:`pushjack.config` for more details.
-        request (callable, optional): Callable object that makes POST request
-            to GCM service. Defaults to ``None`` which creates its own request
-            callable.
-
-    Returns:
-        list: List of chunked ``requests.Response`` objects from GCM server
-            grouped by ``GCM_MAX_RECIPIENTS``.
-
-    See Also:
-        See :func:`send` for a full listing of keyword arguments.
-
-    .. versionadded:: 0.0.1
-    """
-    if request is None:
-        request = GCMRequest(config)
-
-    max_recipients = config.get('GCM_MAX_RECIPIENTS')
-
-    results = []
-    for _registration_ids in chunk(registration_ids, max_recipients):
-        results.append(send(_registration_ids,
-                            data,
-                            config,
-                            request=request,
-                            **options))
-
-    return results
+    return GCMResponse(responses)

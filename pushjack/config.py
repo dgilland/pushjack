@@ -42,11 +42,6 @@ class GCMConfig(Config):
     GCM_API_KEY = None
     GCM_URL = 'https://android.googleapis.com/gcm/send'
 
-    # GCM only allows up to 1000 reg ids per bulk message. Set lower if needed,
-    # but not higher.
-    # https://developer.android.com/google/gcm/gcm.html#request
-    GCM_MAX_RECIPIENTS = 1000
-
 
 class APNSConfig(Config):
     """Configuration for APNS in production."""

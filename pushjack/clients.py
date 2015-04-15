@@ -35,11 +35,11 @@ class GCMClient(Client):
     #: GCM adapter.
     adapter = gcm
 
-    def send(self, device_id, data, **options):
-        """Send push notification to single recipient.
+    def send(self, ids, data, **options):
+        """Send push notification to single or multiple recipients.
 
         Args:
-            device_id (str): Device ID to send notification to.
+            ids (str|list): List of device IDs to send notification to.
             data (str|dict): Notification data to send.
 
         Keyword Args:
@@ -53,37 +53,7 @@ class GCMClient(Client):
 
         .. versionadded:: 0.0.1
         """
-        response = self.adapter.send(device_id,
-                                     data,
-                                     self.config,
-                                     **options)
-
-        return gcm.GCMResponse(response)
-
-    def send_bulk(self, device_ids, data, **options):
-        """Send push notification to multiple recipients.
-
-        Args:
-            device_ids (list): List of device IDs to send notification to.
-            data (str|dict): Notification data to send.
-
-        Keyword Args:
-            See service module for more details.
-
-        Returns:
-            :class:`pushjack.gcm.GCMResponse`
-
-        See Also:
-            :func:`pushjack.gcm.send_bulk`
-
-        .. versionadded:: 0.0.1
-        """
-        responses = self.adapter.send_bulk(device_ids,
-                                           data,
-                                           self.config,
-                                           **options)
-
-        return gcm.GCMResponse(responses)
+        return self.adapter.send(ids, data, self.config, **options)
 
 
 class APNSClient(Client):

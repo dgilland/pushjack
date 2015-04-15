@@ -22,7 +22,7 @@ from .fixtures import (
 )
 
 
-@parametrize('token,data,extra,payload', [
+@parametrize('tokens,data,extra,payload', [
     ('abc', 'Hello world', {},
      {'registration_ids': ['abc'],
       'data': {'message': 'Hello world'}}),
@@ -49,25 +49,6 @@ from .fixtures import (
                'custom': {'key0': ['value0_0'],
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
-])
-def test_gcm_send(gcm_client, token, data, extra, payload):
-    with httmock.HTTMock(gcm_server_response):
-        res = gcm_client.send(token, data, **extra)
-
-        assert len(res.responses) == 1
-        assert res.registration_ids == [token]
-        assert res.data == [{'multicast_id': 1,
-                             'success': 1,
-                             'failure': 0,
-                             'canonical_ids': 0,
-                             'results': [{'message_id': str(token)}]}]
-        assert res.successes == [token]
-        assert res.payloads == [payload]
-        assert res.errors == []
-        assert res.canonical_ids == []
-
-
-@parametrize('tokens,data,extra,payload', [
     (['abc', 'def', 'ghi'], 'Hello world', {},
      {'registration_ids': ['abc', 'def', 'ghi'],
       'data': {'message': 'Hello world'}}),
@@ -97,9 +78,12 @@ def test_gcm_send(gcm_client, token, data, extra, payload):
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send_bulk(gcm_client, tokens, data, extra, payload):
+def test_gcm_send(gcm_client, tokens, data, extra, payload):
     with httmock.HTTMock(gcm_server_response):
-        res = gcm_client.send_bulk(tokens, data, **extra)
+        res = gcm_client.send(tokens, data, **extra)
+
+        if not isinstance(tokens, list):
+            tokens = [tokens]
 
         assert len(res.responses) == 1
         assert res.registration_ids == tokens
@@ -147,7 +131,7 @@ def test_gcm_response(gcm_client, tokens, status_code, results, expected):
     response = gcm_server_response_factory(content, status_code)
 
     with httmock.HTTMock(response):
-        res = gcm_client.send_bulk(tokens, {})
+        res = gcm_client.send(tokens, {})
         assert res.registration_ids == expected['registration_ids']
         assert res.failures == expected['failures']
         assert res.successes == expected['successes']
@@ -182,7 +166,6 @@ def test_gcm_create_request():
 
 @parametrize('method', [
     'send',
-    'send_bulk'
 ])
 def test_gcm_create_request_when_sending(gcm_client, method):
     with mock.patch('pushjack.gcm.GCMRequest') as request:
@@ -190,24 +173,21 @@ def test_gcm_create_request_when_sending(gcm_client, method):
         request.assert_called_with(gcm_client.config)
 
 
-@parametrize('method,tokens,data,extra,expected', [
-    ('send',
-     'abc',
+@parametrize('tokens,data,extra,expected', [
+    ('abc',
      {},
      {},
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}')),
-    ('send_bulk',
-     ['abc'],
+    (['abc'],
      {},
      {},
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
-def test_gcm_request_call(gcm_client, method, tokens, data, extra, expected):
+def test_gcm_request_call(gcm_client, tokens, data, extra, expected):
     with mock.patch('requests.Session') as Session:
-        getattr(gcm_client, method)(tokens, data, **extra)
-
+        gcm_client.send(tokens, data, **extra)
         assert expected in Session.mock_calls
 
 
@@ -217,7 +197,6 @@ def test_gcm_config():
     assert isinstance(config, GCMConfig)
     assert config['GCM_API_KEY'] is None
     assert config['GCM_URL'] == 'https://android.googleapis.com/gcm/send'
-    assert config['GCM_MAX_RECIPIENTS'] == 1000
 
 
 def test_gcm_client_config_class():
