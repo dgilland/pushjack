@@ -61,8 +61,6 @@ class APNSConfig(Config):
     APNS_ERROR_TIMEOUT = 0.5
     APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
 
-    APNS_MAX_NOTIFICATION_SIZE = 2048
-
 
 class APNSSandboxConfig(APNSConfig):
     """Configuration for APNS in sandbox mode."""

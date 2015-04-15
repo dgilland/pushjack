@@ -7,12 +7,17 @@ try:
 except ImportError:
     import json
 
-from ._compat import range_ as range, string_types
+from ._compat import range_ as range, string_types, iteritems
 
 
 def chunk(seq, size):
     """Return generator that yields chunks of length `size` from `seq`."""
     return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
+def compact_dict(dct):
+    return dict((key, value) for key, value in iteritems(dct)
+                if value is not None)
 
 
 def json_dumps(data):

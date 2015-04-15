@@ -95,11 +95,11 @@ class APNSClient(Client):
     #: APNS adapter.
     adapter = apns
 
-    def send(self, device_id, data, **options):
-        """Send push notification to single recipient.
+    def send(self, ids, data, **options):
+        """Send push notification to single or multiple recipients.
 
         Args:
-            device_id (str): Device ID to send notification to.
+            ids (str|list): Device ID(s) to send notification to.
             data (str|dict): Notification data to send.
 
         Keyword Args:
@@ -113,40 +113,14 @@ class APNSClient(Client):
 
         .. versionadded:: 0.0.1
         """
-        return self.adapter.send(device_id,
-                                 data,
-                                 self.config,
-                                 **options)
+        return self.adapter.send(ids, data, self.config, **options)
 
-    def send_bulk(self, device_ids, data, **options):
-        """Send push notification to multiple recipients.
-
-        Args:
-            device_ids (list): List of device IDs to send notification to.
-            data (str|dict): Notification data to send.
-
-        Keyword Args:
-            See service module for more details.
-
-        Returns:
-            None
-
-        See Also:
-            :func:`pushjack.apns.send_bulk`
-
-        .. versionadded:: 0.0.1
-        """
-        return self.adapter.send_bulk(device_ids,
-                                      data,
-                                      self.config,
-                                      **options)
-
-    def get_expired_tokens(self, sock=None):
+    def get_expired_tokens(self):
         """Return list of expired tokens.
 
         Returns:
-            list: List of tuples containing ``(expired_token, timestamp)``.
+            list: List of :class:`pushjack.apns.APNSExpiredToken`.
 
         .. versionadded:: 0.0.1
         """
-        return self.adapter.get_expired_tokens(self.config, sock=sock)
+        return self.adapter.get_expired_tokens(self.config)

@@ -1,147 +1,315 @@
 # -*- coding: utf-8 -*-
 """Lower level module for Apple Push Notification service.
 
-This module is meant to provide basic functionality for sending push
-notifications. Error handling is very naive. If a socket connection is
-provided to the send functions, then no error checking will take place and the
-socket will not be closed. It's up to the caller to implement. If no socket
-connection is provided, then one will be created and error handling will be
-very optimistic.
-
-In the case of a single push, errors will be check after sending and raised
-if found. This behavior shouldn't pose any issues. However, in the case of bulk
-pushes, error checking will only happen after all notifications have been sent.
-This is less than ideal but an improved error algorithm is left to consumers of
-the service to implement.
+The algorithm used to send bulk push notifications is optimized to eagerly
+check for errors within a single thread. During bulk sending, error checking is
+performed after each send and is non-blocking until the last notification is
+sent. A final, blocking error check is performed using the timeout provided in
+the configuration settings. This eager error checking is done to ensure that
+no errors are missed (e.g. by waiting too long to check errors before the
+connection is closed by the APNS server) without having to use two threads to
+read and write on the socket.
 
 Apple's documentation for APNS is available at:
 
+- http://goo.gl/qMfByr
 - http://goo.gl/wFVr2S
 """
 
 from binascii import hexlify, unhexlify
-from contextlib import closing
-from functools import partial
+from collections import namedtuple
+import select
 import socket
 import ssl
 import struct
 import time
 
-from .utils import json_dumps
+from .utils import json_dumps, compact_dict
 from .exceptions import (
     APNSError,
     APNSAuthError,
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
+    APNSServerError,
     raise_apns_server_error
 )
 
 
 __all__ = (
     'send',
-    'send_bulk',
     'get_expired_tokens',
 )
 
 
-# Apple protocol says command is always 8. See http://goo.gl/ENUjXg
+# Constants derived from http://goo.gl/wFVr2S
+APNS_PUSH_COMMAND = 2
+APNS_PUSH_FRAME_ITEM_COUNT = 5
+APNS_PUSH_FRAME_ITEM_PREFIX_LEN = 3
+APNS_PUSH_IDENTIFIER_LEN = 4
+APNS_PUSH_EXPIRATION_LEN = 4
+APNS_PUSH_PRIORITY_LEN = 1
+
 APNS_ERROR_RESPONSE_COMMAND = 8
+APNS_ERROR_RESPONSE_LEN = 6
+APNS_FEEDBACK_HEADER_LEN = 6
+APNS_MAX_NOTIFICATION_SIZE = 2048
 
 
-def is_valid_token(token):
-    """Check if token is valid format."""
-    try:
-        assert unhexlify(token)
-        assert len(token) == 64
-        valid = True
-    except Exception:
-        valid = False
-
-    return valid
+APNSExpiredToken = namedtuple('APNSExpiredToken', ['token', 'timestamp'])
 
 
-def create_payload(alert,
-                   badge=None,
-                   sound=None,
-                   category=None,
-                   content_available=None,
-                   title=None,
-                   title_loc_key=None,
-                   title_loc_args=None,
-                   action_loc_key=None,
-                   loc_key=None,
-                   loc_args=None,
-                   launch_image=None,
-                   extra=None,
-                   **ignore):
-    """Return notification payload in JSON format."""
-    if loc_args is None:
-        loc_args = []
+class APNSPayload(object):
+    """APNS payload object that serializes to JSON."""
+    def __init__(self,
+                 alert,
+                 badge=None,
+                 sound=None,
+                 category=None,
+                 content_available=None,
+                 title=None,
+                 title_loc_key=None,
+                 title_loc_args=None,
+                 action_loc_key=None,
+                 loc_key=None,
+                 loc_args=None,
+                 launch_image=None,
+                 extra=None):
+        self.alert = alert
+        self.badge = badge
+        self.sound = sound
+        self.category = category
+        self.content_available = content_available
+        self.title = title
+        self.title_loc_key = title_loc_key
+        self.title_loc_args = title_loc_args
+        self.action_loc_key = action_loc_key
+        self.loc_key = loc_key
+        self.loc_args = loc_args
+        self.launch_image = launch_image
+        self.extra = extra
 
-    if extra is None:
-        extra = {}
+    def to_dict(self):
+        """Return payload as dictionary."""
+        payload = {}
 
-    payload = {}
-    payload.update(extra)
-    payload['aps'] = {}
+        if any([self.title,
+                self.title_loc_key,
+                self.title_loc_args,
+                self.action_loc_key,
+                self.loc_key,
+                self.loc_args,
+                self.launch_image]):
+            alert = {
+                'body': self.alert,
+                'title': self.title,
+                'title-loc-key': self.title_loc_key,
+                'title-loc-args': self.title_loc_args,
+                'action-loc-key': self.action_loc_key,
+                'loc-key': self.loc_key,
+                'loc-args': self.loc_args,
+                'launch-image': self.launch_image,
+            }
 
-    if any([title,
-            title_loc_key,
-            title_loc_args,
-            action_loc_key,
-            loc_key,
-            loc_args,
-            launch_image]):
-        alert = {'body': alert} if alert else {}
+            alert = compact_dict(alert)
+        else:
+            alert = self.alert
 
-        if title:
-            alert['title'] = title
+        payload.update(self.extra or {})
+        payload['aps'] = compact_dict({
+            'alert': alert,
+            'badge': self.badge,
+            'sound': self.sound,
+            'category': self.category,
+            'content-available': 1 if self.content_available else None
+        })
 
-        if title_loc_key:
-            alert['title-loc-key'] = title_loc_key
+        return payload
 
-        if title_loc_args:
-            alert['title-loc-args'] = title_loc_args
+    def to_json(self):
+        """Return payload as JSON string."""
+        return json_dumps(self.to_dict())
 
-        if action_loc_key:
-            alert['action-loc-key'] = action_loc_key
+    def __len__(self):
+        """Return length of payload."""
+        return len(self.to_json())
 
-        if loc_key:
-            alert['loc-key'] = loc_key
 
-        if loc_args:
-            alert['loc-args'] = loc_args
+class APNSPayloadStream(object):
+    """Iterable object that yields a binary APNS socket frame for each device
+    token.
+    """
+    def __init__(self, tokens, payload, expiration, priority):
+        self.tokens = tokens
+        self.payload = payload
+        self.expiration = expiration
+        self.priority = priority
 
-        if launch_image:
-            alert['launch-image'] = launch_image
+    def __iter__(self):
+        """Iterate through each device token and yield APNS socket frame."""
+        payload = self.payload.to_json()
 
-    if alert:
-        payload['aps']['alert'] = alert
+        for identifier, id_ in enumerate(self.tokens):
+            yield pack_frame(id_,
+                             identifier,
+                             payload,
+                             self.expiration,
+                             self.priority)
 
-    if badge:
-        payload['aps']['badge'] = badge
 
-    if sound:
-        payload['aps']['sound'] = sound
+class APNSFeedbackStream(object):
+    """An iterable object that yields an expired device token."""
+    def __init__(self, conn):
+        self.conn = conn
 
-    if category:
-        payload['aps']['category'] = category
+    def __iter__(self):
+        """Iterate through and yield expired device tokens."""
+        header_format = '!LH'
+        buff = ''
 
-    if content_available:
-        payload['aps']['content-available'] = 1
+        for chunk in self.conn.readstream(4096):
+            buff += chunk
 
-    return json_dumps(payload)
+            if not buff:
+                break
+
+            if len(buff) < APNS_FEEDBACK_HEADER_LEN:  # pragma: no cover
+                break
+
+            while len(buff) > APNS_FEEDBACK_HEADER_LEN:
+                timestamp, token_len = struct.unpack_from(header_format,
+                                                          buff[:6])
+                bytes_to_read = APNS_FEEDBACK_HEADER_LEN + token_len
+
+                if len(buff) >= bytes_to_read:
+                    token = struct.unpack_from('{0}s'.format(token_len),
+                                               buff[6:bytes_to_read])
+                    token = hexlify(token[0]).decode('utf8')
+
+                    yield APNSExpiredToken(token, timestamp)
+
+                    buff = buff[bytes_to_read:]
+                else:  # pragma: no cover
+                    break
+
+
+class APNSConnection(object):
+    """Manager for APNS socket connection."""
+    def __init__(self, host, port, certfile):
+        self.host = host
+        self.port = port
+        self.certfile = certfile
+        self.sock = None
+
+    def connect(self):
+        """Lazily connect to APNS server. Re-establish connection if previously
+        closed.
+        """
+        if self.sock:
+            return
+
+        self.sock = create_socket(self.host, self.port, self.certfile)
+
+    def close(self):
+        """Disconnect from APNS server."""
+        if self.sock:
+            self.sock.close()
+        self.sock = None
+
+    @property
+    def client(self):
+        """Return client socket connection to APNS server."""
+        self.connect()
+        return self.sock
+
+    def writable(self, timeout):
+        """Return whether connection is writable."""
+        try:
+            return select.select([], [self.client], [], timeout)[1]
+        except Exception:
+            self.close()
+            raise
+
+    def readable(self, timeout):
+        """Return whether connection is readable."""
+        try:
+            return select.select([self.client], [], [], timeout)[0]
+        except Exception:
+            self.close()
+            raise
+
+    def read(self, buffsize, timeout=10):
+        """Return read data up to `buffsize`."""
+        data = b''
+
+        while True:
+            if not self.readable(timeout):  # pragma: no cover
+                self.close()
+                raise socket.timeout
+
+            chunk = self.client.read(buffsize - len(data))
+            data += chunk
+
+            if not chunk or len(data) >= buffsize or not timeout:
+                # Either we've read all data or this is a nonblocking read.
+                break
+
+        return data
+
+    def readstream(self, buffsize, timeout=10):
+        """Return stream of socket data in chunks <= `buffsize` until no more
+        data found.
+        """
+        while True:
+            data = self.read(buffsize, timeout)
+            yield data
+
+            if not data:  # pragma: no cover
+                break
+
+    def write(self, data, timeout=10):
+        """Write data to socket."""
+        if not self.writable(timeout):
+            self.close()
+            raise socket.timeout
+
+        return self.client.sendall(data)
+
+    def check_error(self, timeout=10):
+        """Check for APNS errors."""
+        if not self.readable(timeout):
+            # No error response.
+            return
+
+        data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+
+        command = struct.unpack('>B', data[0])[0]
+
+        if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
+            self.close()
+            raise APNSServerError(('Error response command must be {0}. '
+                                   'Found: {1}'
+                                   .format(APNS_ERROR_RESPONSE_COMMAND,
+                                           command)))
+
+        status, identifier = struct.unpack('>BI', data[1:])
+
+        self.close()
+        raise_apns_server_error(status, identifier)
+
+    def send(self, frames, error_timeout):
+        """Send stream of frames to APNS server."""
+        for frame in frames:
+            self.check_error(0)
+            self.write(frame)
+
+        self.check_error(error_timeout)
 
 
 def create_socket(host, port, certfile):
     """Create a socket connection to the APNS server."""
-    if not certfile:
-        raise APNSAuthError(('Missing certificate file. '
-                             'Cannot send notifications.'))
-
     try:
-        with open(certfile, 'r') as f:
-            f.read()
+        with open(certfile, 'r') as fileobj:
+            fileobj.read()
     except Exception as ex:
         raise APNSAuthError(('The certfile at {0} is not readable: {1}'
                              .format(certfile, ex)))
@@ -153,176 +321,114 @@ def create_socket(host, port, certfile):
     # pylint: disable=no-member
     sock = ssl.wrap_socket(sock,
                            ssl_version=ssl.PROTOCOL_TLSv1,
-                           certfile=certfile)
+                           certfile=certfile,
+                           do_handshake_on_connect=False)
     sock.connect((host, port))
+
+    sock.setblocking(0)
+    do_ssl_handshake(sock)
 
     return sock
 
 
-def create_push_socket(config):
-    """Return socket connection to push server."""
-    return create_socket(config['APNS_HOST'],
-                         config['APNS_PORT'],
-                         config['APNS_CERTIFICATE'])
+def do_ssl_handshake(sock):
+    """Perform SSL socket handshake."""
+    while True:
+        try:
+            sock.do_handshake()
+            break
+        except ssl.SSLError as ex:  # pragma: no cover
+            if ex.args[0] == ssl.SSL_ERROR_WANT_READ:
+                select.select([sock], [], [])
+            elif ex.args[0] == ssl.SSL_ERROR_WANT_WRITE:
+                select.select([], [sock], [])
+            else:
+                raise
 
 
-def create_feedback_socket(config):
-    """Return socket connection to feedback server."""
-    return create_socket(config['APNS_FEEDBACK_HOST'],
-                         config['APNS_FEEDBACK_PORT'],
-                         config['APNS_CERTIFICATE'])
-
-
-def ensure_push_socket(sock, config):
-    """Ensures push socket connection exists. If it doesn't, create one. Flag
-    whether the socket should be kept alive if we didn't create it.
-    """
-    if not sock:
-        sock = create_push_socket(config)
-        keepalive = False
-    else:
-        keepalive = True
-
-    return (sock, keepalive)
-
-
-def ensure_feedback_socket(sock, config):
-    """Ensures feedback socket connection exists. If it doesn't, create one. Flag
-    whether the socket should be kept alive if we didn't create it.
-    """
-    if not sock:
-        sock = create_feedback_socket(config)
-        keepalive = False
-    else:
-        keepalive = True
-
-    return (sock, keepalive)
-
-
-def error_check(sock, config):
-    """Check socket response for errors and raise status based exception if
-    found.
-    """
-    timeout = config['APNS_ERROR_TIMEOUT']
-
-    if timeout is None:
-        # Assume everything went fine.
-        return
-
-    original_timeout = sock.gettimeout()
-
-    try:
-        sock.settimeout(timeout)
-        data = sock.recv(6)
-
-        if data:
-            command, status, identifier = struct.unpack('!BBI', data)
-
-            if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
-                raise APNSError(('Error response command must be {0}. '
-                                 'Found: {1}'
-                                 .format(APNS_ERROR_RESPONSE_COMMAND,
-                                         command)))
-
-            if status != 0:
-                raise_apns_server_error(status, identifier)
-    except socket.timeout:  # pragma: no cover
-        # py3, See http://bugs.python.org/issue10272
-        pass
-    except ssl.SSLError as ex:  # pragma: no cover
-        # py2
-        if 'timed out' not in ex.message:
-            raise
-    finally:
-        sock.settimeout(original_timeout)
-
-
-def pack_frame(token, payload, identifier, expiration, priority):
-    """Return packed socket frame."""
+def pack_frame(token, identifier, payload, expiration, priority):
+    """Return a packed APNS socket frame for given token."""
     token_bin = unhexlify(token)
     token_len = len(token_bin)
     payload_len = len(payload)
 
-    # |COMMAND|FRAME-LEN|{token}|{payload}|{id:4}|{expiration:4}|{priority:1}
-    # 5 items, each 3 bytes prefix, then each item length
-    frame_len = 3 * 5 + token_len + payload_len + 4 + 4 + 1
-    frame_fmt = '!BIBH{0}sBH{1}sBHIBHIBHB'.format(token_len, payload_len)
+    frame_len = calc_frame_length(token_len, payload_len)
+    frame_fmt = '>BIBH{0}sBH{1}sBHIBHIBHB'.format(token_len, payload_len)
+
+    # NOTE: Each bare int below is the corresponding frame item ID.
     frame = struct.pack(frame_fmt,
-                        2, frame_len,
-                        1, token_len, token_bin,
-                        2, payload_len, payload,
-                        3, 4, identifier,
-                        4, 4, expiration,
-                        5, 1, priority)
+                        APNS_PUSH_COMMAND, frame_len,  # BI
+                        1, token_len, token_bin,  # BH{token_len}s
+                        2, payload_len, payload,  # BH{payload_len}s
+                        3, APNS_PUSH_IDENTIFIER_LEN, identifier,  # BHI
+                        4, APNS_PUSH_EXPIRATION_LEN, expiration,  # BHI
+                        5, APNS_PUSH_PRIORITY_LEN, priority)  # BHB
 
     return frame
 
 
-def read_and_unpack(sock, data_format):
-    """Unpack and return socket frame."""
-    length = struct.calcsize(data_format)
-    data = sock.recv(length)
-
-    if data:
-        return struct.unpack_from(data_format, data, 0)
-    else:
-        return None
-
-
-def receive_feedback(sock):
-    """Return expired tokens from feedback server."""
-    expired_tokens = []
-
-    # Read a timestamp (4 bytes) and device token length (2 bytes).
-    header_format = '!LH'
-    has_data = True
-
-    while has_data:
-        try:
-            # Read the header tuple.
-            header_data = read_and_unpack(sock, header_format)
-
-            if header_data is not None:
-                timestamp, token_length = header_data
-
-                # Unpack format for a single value of length bytes
-                device_token = read_and_unpack(sock,
-                                               '{0}s'.format(token_length))
-
-                if device_token is not None:
-                    token = hexlify(device_token[0]).decode('utf8')
-                    expired_tokens.append((token, timestamp))
-            else:
-                has_data = False
-        except socket.timeout:  # pragma: no cover
-            # py3, see http://bugs.python.org/issue10272
-            pass
-        except ssl.SSLError as ex:  # pragma: no cover
-            # py2
-            if 'timed out' not in ex.message:
-                raise
-
-    return expired_tokens
+def calc_frame_length(token_len, payload_len):
+    """Return frame length for given token and payload lengths."""
+    # |CMD|FRAMELEN|{token}|{payload}|{id:4}|{expiration:4}|{priority:1}
+    # 5 items, each 3 bytes prefix, then each item length
+    return (APNS_PUSH_FRAME_ITEM_COUNT * APNS_PUSH_FRAME_ITEM_PREFIX_LEN +
+            token_len +
+            payload_len +
+            APNS_PUSH_IDENTIFIER_LEN +
+            APNS_PUSH_EXPIRATION_LEN +
+            APNS_PUSH_PRIORITY_LEN)
 
 
-def send(token,
+def valid_token(token):
+    """Return whether token is in valid format."""
+    try:
+        assert unhexlify(token)
+        assert len(token) == 64
+        valid = True
+    except Exception:
+        valid = False
+
+    return valid
+
+
+def invalid_tokens(tokens):
+    """Return list of invalid APNS tokens."""
+    return [token for token in tokens if not valid_token(token)]
+
+
+def validate_tokens(tokens):
+    """Check whether `tokens` are all valid."""
+    invalid = invalid_tokens(tokens)
+
+    if invalid:
+        raise APNSInvalidTokenError(('Invalid token format. '
+                                     'Expected 64 character hex string: '
+                                     '{0}'.format(', '.join(invalid))))
+
+
+def validate_payload(payload):
+    """Check whether `payload` is valid."""
+    if len(payload) > APNS_MAX_NOTIFICATION_SIZE:
+        raise APNSInvalidPayloadSizeError(
+            ('Notification body cannot exceed '
+             '{0} bytes'
+             .format(APNS_MAX_NOTIFICATION_SIZE)))
+
+
+def send(ids,
          alert,
          config,
-         identifier=0,
          expiration=None,
          priority=10,
-         payload=None,
-         sock=None,
          **options):
     """Send push notification to single device.
 
     Args:
-        token (str): APNS device token. Expected to be a 64 character hex
-            string.
+        ids (list): APNS device tokens. Each item is expected to be a 64
+            character hex string.
         alert (str|dict): Alert message or dictionary.
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
-        identifier (int, optional): Message identifier. Defaults to ``0``.
         expiration (int, optional): Expiration time of message in seconds
             offset from now. Defaults to ``None`` which uses
             ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -339,15 +445,6 @@ def send(token,
                 device receiving it.
 
             Defaults to ``10``.
-        payload (str, optional): Directly send alert payload as JSON formatted
-            string. If set then alert arguments are ignored and `payload` is
-            used directly. Defaults to ``None`` which results in `payload`
-            being constructed from passed in arguments.
-        sock (SSLSocket, optional): Provide outside SSL socket connection to
-            APNS server. Socket is assumed to have been preconfigured and ready
-            to use. When `sock` is provided, no error checking is done;
-            it's assumed that the socket provider will handle that. Default is
-            ``None``.
 
     Keyword Args:
         badge (int, optional): Badge number count for alert. Defaults to
@@ -382,118 +479,47 @@ def send(token,
         APNSInvalidPayloadSizeError: Notification payload size too large.
         APNSServerError: APNS error response from server.
 
-    Warning:
-        It is not recommended to use this function to send bulk notifications
-        **unless** you provide your own socket connection. Without a provided
-        socket connection, this function will open and close a new socket
-        connection for each send. This can result in the APNS network treating
-        those repeated connections as a DoS (denial-of-service) attack and
-        cause further connections to be blocked.
-
     .. versionadded:: 0.0.1
     """
-    if not is_valid_token(token):
-        raise APNSInvalidTokenError(('Invalid token format. '
-                                     'Expected 64 character hex string.'))
+    if not isinstance(ids, (list, tuple)):
+        ids = [ids]
 
-    if payload is None:
-        payload = create_payload(alert, **options)
+    payload = APNSPayload(alert, **options)
 
-    max_size = config['APNS_MAX_NOTIFICATION_SIZE']
-    default_expiration_offset = config['APNS_DEFAULT_EXPIRATION_OFFSET']
+    validate_tokens(ids)
+    validate_payload(payload)
 
-    if len(payload) > max_size:
-        raise APNSInvalidPayloadSizeError(('Notification body cannot exceed '
-                                           '{0} bytes'
-                                           .format(max_size)))
+    if expiration is None:
+        expiration = (int(time.time()) +
+                      config['APNS_DEFAULT_EXPIRATION_OFFSET'])
 
-    # If expiration isn't specified use default offset from now.
-    expiration_time = (expiration if expiration is not None
-                       else int(time.time()) + default_expiration_offset)
-
-    frame = pack_frame(token,
-                       payload,
-                       identifier,
-                       expiration_time,
-                       priority)
-
-    sock, keepalive = ensure_push_socket(sock, config)
-
-    sock.write(frame)
-
-    if not keepalive:
-        error_check(sock, config)
-        sock.close()
+    conn = APNSConnection(config['APNS_HOST'],
+                          config['APNS_PORT'],
+                          config['APNS_CERTIFICATE'])
+    conn.send(APNSPayloadStream(ids, payload, expiration, priority),
+              config['APNS_ERROR_TIMEOUT'])
+    conn.close()
 
 
-def send_bulk(tokens, alert, config, payload=None, sock=None, **options):
-    """Send push notification to multiple devices.
-
-    Args:
-        tokens (list): List of APNS device tokens. Each token is expected to be
-            a 64 character hex string.
-        alert (str|dict): Alert message or dictionary.
-        config (dict): Configuration dictionary containing APNS configuration
-            values. See :mod:`pushjack.config` for more details.
-        payload (str, optional): Directly send alert payload as JSON formatted
-            string. If set then alert arguments are ignored and `payload` is
-            used directly. Defaults to ``None`` which results in `payload`
-            being constructed from passed in arguments.
-        sock (SSLSocket, optional): Provide outside SSL socket connection to
-            APNS server. Socket is assumed to have been preconfigured and ready
-            to use. When `sock` is provided, no error checking is done;
-            it's assumed that the socket provider will handle that. Default is
-            ``None``.
-
-    Returns:
-        None
-
-    See Also:
-        See :func:`send` for a full listing of keyword arguments.
-
-    .. versionadded:: 0.0.1
-    """
-    if payload is None:
-        # Reuse payload since it's identical for each send.
-        payload = create_payload(alert, **options)
-
-    sock, keepalive = ensure_push_socket(sock, config)
-
-    # Bind common arguments to partial send function.
-    sender = partial(send,
-                     alert=alert,
-                     config=config,
-                     payload=payload,
-                     sock=sock,
-                     **options)
-
-    for identifier, token in enumerate(tokens):
-        sender(token=token, identifier=identifier)
-
-    if not keepalive:
-        error_check(sock, config)
-        sock.close()
-
-
-def get_expired_tokens(config, sock=None):
+def get_expired_tokens(config):
     """Return inactive device ids that can't be pushed to anymore.
 
     Args:
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
-        sock (SSLSocket, optional): Provide outside SSL socket connection to
-            APNS server. Socket is assumed to have been preconfigured and ready
+        conn (APNSConnection, optional): Provide APNSConnection instance.
+            Connection is assumed to have been preconfigured and ready
             to use. Default is ``None``.
 
     Returns:
-        list: List of tuples containing ``(token, timestamp)``.
+        list: List of :class:`APNSExpiredToken`.
 
     .. versionadded:: 0.0.1
     """
-    sock, keepalive = ensure_feedback_socket(sock, config)
-    expired = receive_feedback(sock)
-
-    if not keepalive:
-        sock.close()
+    conn = APNSConnection(config['APNS_FEEDBACK_HOST'],
+                          config['APNS_FEEDBACK_PORT'],
+                          config['APNS_CERTIFICATE'])
+    expired = list(APNSFeedbackStream(conn))
+    conn.close()
 
     return expired

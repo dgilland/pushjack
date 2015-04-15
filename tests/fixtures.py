@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import binascii
+from contextlib import contextmanager
+import socket
 import struct
 import time
 
@@ -23,31 +25,29 @@ from pushjack.utils import json_dumps, json_loads
 parametrize = pytest.mark.parametrize
 
 
-def apns_socket_factory(return_status):
-    class MagicSocket(mock.MagicMock):
-        def write(self, frame):
-            self.frame = frame
-
-    sock = mock.MagicMock()
-    sock.recv = lambda n: struct.pack('!BBI',
-                                      APNS_ERROR_RESPONSE_COMMAND,
-                                      return_status,
-                                      0)
-
-    return sock
-
-
 @pytest.fixture
 def apns_client():
     """Return APNS client."""
-    return APNSClient(create_apns_config())
+    config = create_apns_config()
+    config['APNS_ERROR_TIMEOUT'] = 0
+    return APNSClient(config)
 
 
-@pytest.fixture
-def apns_sock():
-    """Return mock for APNS socket client."""
+def apns_socket_factory(connect=None):
     sock = mock.MagicMock()
-    sock.recv = lambda n: ''
+    sock._sock = socket.socket()
+    if connect:
+        sock._sock.connect(connect)
+    sock.fileno = lambda: sock._sock.fileno()
+    return sock
+
+
+def apns_socket_error_factory(return_status):
+    sock = apns_socket_factory()
+    sock.read = lambda n: struct.pack('>BBI',
+                                      APNS_ERROR_RESPONSE_COMMAND,
+                                      return_status,
+                                      0)
     return sock
 
 
@@ -59,15 +59,32 @@ def apns_feedback_socket_factory(tokens):
         data['stream'] += struct.pack('!LH', int(time.time()), len(token))
         data['stream'] += struct.pack('{0}s'.format(len(token)), token)
 
-    def recv(n):
+    def read(n):
         out = data['stream'][:n]
         data['stream'] = data['stream'][n:]
         return out
 
-    sock = mock.MagicMock()
-    sock.recv = recv
+    sock = apns_socket_factory()
+    sock.read = read
 
     return sock
+
+
+@contextmanager
+def apns_create_socket(connect=('localhost', 8080)):
+    with mock.patch('pushjack.apns.create_socket') as create_socket:
+        create_socket.return_value = apns_socket_factory(connect)
+        yield create_socket
+        create_socket._sock.close()
+
+
+@contextmanager
+def apns_create_error_socket(code):
+    with mock.patch('pushjack.apns.create_socket') as create_socket:
+        error_sock = apns_socket_error_factory(code)
+        create_socket.return_value = error_sock
+        yield create_socket
+        create_socket._sock.close()
 
 
 def gcm_server_response_factory(content, status_code=200):
