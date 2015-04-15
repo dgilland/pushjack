@@ -25,6 +25,11 @@ from pushjack.utils import json_dumps, json_loads
 parametrize = pytest.mark.parametrize
 
 
+TEST_HOST = socket.gethostname()
+TEST_PORT = 12345
+TEST_CONNECT = (TEST_HOST, TEST_PORT)
+
+
 @pytest.fixture
 def apns_client():
     """Return APNS client."""
@@ -71,7 +76,7 @@ def apns_feedback_socket_factory(tokens):
 
 
 @contextmanager
-def apns_create_socket(connect=('0.0.0.0', 12345)):
+def apns_create_socket(connect=TEST_CONNECT):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
         create_socket.return_value = apns_socket_factory(connect)
         yield create_socket
