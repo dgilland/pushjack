@@ -25,8 +25,8 @@ from .fixtures import (
     apns_create_error_socket,
     apns_create_socket,
     parametrize,
-    TEST_HOST,
-    TEST_PORT
+    TCP_HOST,
+    TCP_PORT
 )
 
 
@@ -207,7 +207,7 @@ def test_apns_create_socket(tmpdir):
     with mock.patch('ssl.wrap_socket') as wrap_socket:
         wrap_socket.do_handshake = lambda: True
 
-        sock = apns.create_socket(TEST_HOST, TEST_PORT, str(certfile))
+        sock = apns.create_socket(TCP_HOST, TCP_PORT, str(certfile))
 
         assert wrap_socket.called
 
@@ -220,19 +220,19 @@ def test_apns_create_socket(tmpdir):
 
 def test_apns_create_socket_missing_certfile():
     with pytest.raises(APNSAuthError):
-        apns.create_socket(TEST_HOST, TEST_PORT, 'missing.pem')
+        apns.create_socket(TCP_HOST, TCP_PORT, 'missing.pem')
 
 
 def test_apns_create_socket_no_certfile():
     with pytest.raises(APNSAuthError):
-        apns.create_socket(TEST_HOST, TEST_PORT, None)
+        apns.create_socket(TCP_HOST, TCP_PORT, None)
 
 
 def test_apns_create_socket_empty_certfile(tmpdir):
     certfile = tmpdir.join('certificate.pem')
 
     with pytest.raises(APNSAuthError):
-        apns.create_socket(TEST_HOST, TEST_PORT, str(certfile))
+        apns.create_socket(TCP_HOST, TCP_PORT, str(certfile))
 
 
 def test_apns_config():

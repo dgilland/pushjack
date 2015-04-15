@@ -3,7 +3,9 @@
 import binascii
 from contextlib import contextmanager
 import socket
+import SocketServer
 import struct
+import threading
 import time
 
 import pytest
@@ -25,9 +27,35 @@ from pushjack.utils import json_dumps, json_loads
 parametrize = pytest.mark.parametrize
 
 
-TEST_HOST = socket.gethostname()
-TEST_PORT = 12345
-TEST_CONNECT = (TEST_HOST, TEST_PORT)
+TCP_HOST = '0.0.0.0'
+TCP_PORT = 12345
+TCP_CONNECT = (TCP_HOST, TCP_PORT)
+
+
+class TCPHandler(SocketServer.BaseRequestHandler):
+    def handle(self):
+        self.data = self.request.recv(4096)
+
+
+class TCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    allow_reuse_address = True
+
+
+class TCPClientServer(object):
+    def __init__(self, connect=None):
+        self.server = TCPServer(connect, TCPHandler)
+        self.server_thread = threading.Thread(target=self.server.serve_forever)
+        self.server_thread.daemon = True
+        self.server_thread.start()
+
+        self.client = socket.socket()
+        self.client.connect(connect)
+
+    def shutdown(self):
+        self.client.close()
+        self.server.server_close()
+        self.server.shutdown()
+        self.server_thread.join()
 
 
 @pytest.fixture
@@ -40,10 +68,15 @@ def apns_client():
 
 def apns_socket_factory(connect=None):
     sock = mock.MagicMock()
-    sock._sock = socket.socket()
+
     if connect:
-        sock._sock.connect(connect)
+        sock._client_server = TCPClientServer(connect)
+        sock._sock = sock._client_server.client
+    else:
+        sock._sock = socket.socket()
+
     sock.fileno = lambda: sock._sock.fileno()
+
     return sock
 
 
@@ -76,20 +109,25 @@ def apns_feedback_socket_factory(tokens):
 
 
 @contextmanager
-def apns_create_socket(connect=TEST_CONNECT):
+def apns_create_socket(connect=TCP_CONNECT):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
-        create_socket.return_value = apns_socket_factory(connect)
+        sock = apns_socket_factory(connect)
+        create_socket.return_value = sock
+
         yield create_socket
-        create_socket._sock.close()
+
+        sock._client_server.shutdown()
 
 
 @contextmanager
 def apns_create_error_socket(code):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
-        error_sock = apns_socket_error_factory(code)
-        create_socket.return_value = error_sock
+        sock = apns_socket_error_factory(code)
+        create_socket.return_value = sock
+
         yield create_socket
-        create_socket._sock.close()
+
+        sock._sock.close()
 
 
 def gcm_server_response_factory(content, status_code=200):
