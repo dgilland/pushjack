@@ -166,7 +166,7 @@ class APNSFeedbackStream(object):
         header_format = '!LH'
         buff = b''
 
-        for chunk in self.conn.readstream(4096):
+        for chunk in self.conn.readchunks(4096):
             buff += chunk
 
             if not buff:
@@ -254,7 +254,7 @@ class APNSConnection(object):
 
         return data
 
-    def readstream(self, buffsize, timeout=10):
+    def readchunks(self, buffsize, timeout=10):
         """Return stream of socket data in chunks <= `buffsize` until no more
         data found.
         """
