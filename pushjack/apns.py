@@ -225,7 +225,7 @@ class APNSConnection(object):
         """Return whether connection is writable."""
         try:
             return select.select([], [self.client], [], timeout)[1]
-        except Exception:
+        except Exception:  # pragma: no cover
             self.close()
             raise
 
@@ -233,7 +233,7 @@ class APNSConnection(object):
         """Return whether connection is readable."""
         try:
             return select.select([self.client], [], [], timeout)[0]
-        except Exception:
+        except Exception:  # pragma: no cover
             self.close()
             raise
 
@@ -338,6 +338,10 @@ def do_ssl_handshake(sock):
             sock.do_handshake()
             break
         except ssl.SSLError as ex:  # pragma: no cover
+            # For some reason, pylint on TravisCI's Python 2.7 platform
+            # complains that these members don't exist. Add a disable flag to
+            # bypass this.
+            # pylint: disable=no-member
             if ex.args[0] == ssl.SSL_ERROR_WANT_READ:
                 select.select([sock], [], [])
             elif ex.args[0] == ssl.SSL_ERROR_WANT_WRITE:
