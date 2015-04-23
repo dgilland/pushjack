@@ -568,7 +568,7 @@ def send(ids,
 
         - Resume sending notifications when a sent token has an error response.
         - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens have
-        an error response.
+            an error response.
     """
     if not isinstance(ids, (list, tuple)):
         ids = [ids]

@@ -10,11 +10,11 @@ Clients
 .. automodule:: pushjack.clients
 
 .. autoclass:: pushjack.clients.APNSClient
-    :members: send, send_bulk, get_expired_tokens
+    :members: send, get_expired_tokens
     :exclude-members: adapter
 
 .. autoclass:: pushjack.clients.GCMClient
-    :members: send, send_bulk
+    :members: send
     :exclude-members: adapter
 
 
