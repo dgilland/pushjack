@@ -2,6 +2,7 @@
 
 import binascii
 from contextlib import contextmanager
+import hashlib
 import socket
 import struct
 import threading
@@ -114,13 +115,19 @@ def apns_feedback_socket_factory(tokens):
     return sock
 
 
-@contextmanager
-def apns_create_socket(connect=TCP_CONNECT):
+def apns_tokens(num=1):
+    tokens = [hashlib.sha256(str(n).encode('utf8')).hexdigest()
+              for n in range(num)]
+    return tokens[0] if num == 1 else tokens
+
+
+@pytest.yield_fixture
+def apns_socket():
     with mock.patch('pushjack.apns.create_socket') as create_socket:
-        sock = apns_socket_factory(connect)
+        sock = apns_socket_factory(TCP_CONNECT)
         create_socket.return_value = sock
 
-        yield create_socket
+        yield create_socket()
 
         sock._client_server.shutdown()
 

@@ -53,7 +53,7 @@ class APNSConfig(Config):
     APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
     APNS_FEEDBACK_PORT = 2196
 
-    APNS_ERROR_TIMEOUT = 0.5
+    APNS_ERROR_TIMEOUT = 10
     APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
 
 

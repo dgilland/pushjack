@@ -25,12 +25,13 @@ import ssl
 import struct
 import time
 
-from .utils import json_dumps, compact_dict
+from .utils import json_dumps, chunk, compact_dict
 from .exceptions import (
     APNSError,
     APNSAuthError,
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
+    APNSSendError,
     APNSServerError,
     raise_apns_server_error
 )
@@ -150,22 +151,55 @@ class APNSPayloadStream(object):
     """Iterable object that yields a binary APNS socket frame for each device
     token.
     """
-    def __init__(self, tokens, payload, expiration, priority):
+    def __init__(self,
+                 tokens,
+                 payload,
+                 expiration,
+                 priority,
+                 batch_size=1):
         self.tokens = tokens
         self.payload = payload
         self.expiration = expiration
         self.priority = priority
+        self.batch_size = batch_size
+        self.next_identifier = 0
+
+    def seek(self, identifier):
+        """Move token index to resume processing after token with index equal
+        to `identifier`.
+
+        Typically, `identifier` will be the token index that generated an error
+        during send. Seeking to this identifier will result in processing the
+        tokens that come after the error-causing token.
+
+        Args:
+            identifier (int): Index of tokens to skip.
+        """
+        self.next_identifier = identifier + 1
+
+    def eof(self):
+        """Return whether all tokens have been processed."""
+        return self.next_identifier >= len(self.tokens)
 
     def __iter__(self):
         """Iterate through each device token and yield APNS socket frame."""
         payload = self.payload.to_json()
 
-        for identifier, id_ in enumerate(self.tokens):
-            yield pack_frame(id_,
-                             identifier,
-                             payload,
-                             self.expiration,
-                             self.priority)
+        data = b''
+        tokens = self.tokens[self.next_identifier:]
+
+        for token_chunk in chunk(tokens, self.batch_size):
+            for token in token_chunk:
+                data += pack_frame(token,
+                                   self.next_identifier,
+                                   payload,
+                                   self.expiration,
+                                   self.priority)
+                self.next_identifier += 1
+
+            yield data
+
+            data = b''
 
 
 class APNSFeedbackStream(object):
@@ -306,13 +340,35 @@ class APNSConnection(object):
         self.close()
         raise_apns_server_error(status, identifier)
 
-    def send(self, frames, error_timeout):
+    def send(self, frames):
         """Send stream of frames to APNS server."""
         for frame in frames:
-            self.check_error(0)
             self.write(frame)
+            self.check_error(0)
 
-        self.check_error(error_timeout)
+    def sendall(self, stream, error_timeout=10):
+        """Send all notifications while handling errors. If an error occurs,
+        then resume sending starting from after the token that failed. If any
+        tokens failed, raise an error after sending all tokens.
+        """
+        errors = []
+
+        while True:
+            try:
+                self.send(stream)
+
+                # Perform the final error check here before exiting. A large
+                # enough timeout should be used so that no errors are missed.
+                self.check_error(error_timeout)
+            except APNSServerError as ex:
+                errors.append(ex)
+                stream.seek(ex.identifier)
+
+            if stream.eof():
+                break
+
+        if errors:
+            raise APNSSendError('APNS send error', errors, stream.tokens)
 
 
 def create_socket(host, port, certfile):
@@ -434,6 +490,7 @@ def send(ids,
          config,
          expiration=None,
          priority=10,
+         batch_size=None,
          **options):
     """Send push notification to single device.
 
@@ -459,6 +516,9 @@ def send(ids,
                 device receiving it.
 
             Defaults to ``10``.
+        batch_size (int, optional): Number of notifications to group together
+            when sending. Defaults to ``None`` which uses
+            ``config['APNS_DEFAULT_BATCH_SIZE']``.
 
     Keyword Args:
         badge (int, optional): Badge number count for alert. Defaults to
@@ -491,8 +551,10 @@ def send(ids,
     Raises:
         APNSInvalidTokenError: Invalid token format.
         APNSInvalidPayloadSizeError: Notification payload size too large.
-        APNSServerError: APNS error response from server. See
-            :mod:`pushjack.exceptions` for full listing.
+        APNSSendError: APNS error response from server containing a list of all
+            APNS server errors and a mapping of tokens to errors for the ones
+            that failed. See :mod:`pushjack.exceptions` for full listing of
+            possible errors.
 
     .. versionadded:: 0.0.1
 
@@ -501,6 +563,12 @@ def send(ids,
         - Added support for bulk sending.
         - Made sending and error checking non-blocking.
         - Removed `sock`, `payload`, and `identifer` arguments.
+
+    .. versionchanged:: 0.5.0
+
+        - Resume sending notifications when a sent token has an error response.
+        - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens have
+        an error response.
     """
     if not isinstance(ids, (list, tuple)):
         ids = [ids]
@@ -514,11 +582,21 @@ def send(ids,
         expiration = (int(time.time()) +
                       config['APNS_DEFAULT_EXPIRATION_OFFSET'])
 
+    if batch_size is None:
+        batch_size = config['APNS_DEFAULT_BATCH_SIZE']
+
     conn = APNSConnection(config['APNS_HOST'],
                           config['APNS_PORT'],
                           config['APNS_CERTIFICATE'])
-    conn.send(APNSPayloadStream(ids, payload, expiration, priority),
-              config['APNS_ERROR_TIMEOUT'])
+
+    stream = APNSPayloadStream(ids,
+                               payload,
+                               expiration,
+                               priority,
+                               batch_size)
+
+    conn.sendall(stream, config['APNS_ERROR_TIMEOUT'])
+
     conn.close()
 
 

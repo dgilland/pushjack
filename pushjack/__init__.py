@@ -33,6 +33,7 @@ from .exceptions import (
     APNSInvalidTopicSizeError,
     APNSInvalidPayloadSizeError,
     APNSInvalidTokenError,
+    APNSSendError,
     APNSShutdownError,
     APNSUnknownError,
     GCMError,
