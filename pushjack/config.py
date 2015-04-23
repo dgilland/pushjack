@@ -39,27 +39,51 @@ class Config(dict):
 
 class GCMConfig(Config):
     """Configuration for GCM in production."""
+    #: GCM API key.
     GCM_API_KEY = None
+
+    #: GCM push server URL.
     GCM_URL = 'https://android.googleapis.com/gcm/send'
 
 
 class APNSConfig(Config):
     """Configuration for APNS in production."""
+    #: Path to APNS certificate file.
     APNS_CERTIFICATE = None
 
+    #: APNS production push server host.
     APNS_HOST = 'gateway.push.apple.com'
+    #: APNS production push server port.
     APNS_PORT = 2195
 
+    #: APNS production feedback server host.
     APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
+    #: APNS production feedback port host.
     APNS_FEEDBACK_PORT = 2196
 
+    #: Timeout used when performing error checking after sending is complete.
+    #: During sending a non-blocking poll cycle is used for error checking
+    #: after each notification batch is sent. If no error is immediately
+    #: available, then sending continues uninterrupted.
     APNS_ERROR_TIMEOUT = 10
+
+    #: Default message expiration to set when not provided.
     APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
+
+    #: Number of notications to group together when sending a bulk
+    #: notification to many recipients. This default value is set
+    #: conservatively low. There is no hard-and-fast rule on what the optimal
+    #: value for this is. Having too large a value could cause issues related
+    #: to TCP socket buffering, though.
+    APNS_DEFAULT_BATCH_SIZE = 100
 
 
 class APNSSandboxConfig(APNSConfig):
     """Configuration for APNS in sandbox mode."""
+    #: APNS sandbox push server host.
     APNS_HOST = 'gateway.sandbox.push.apple.com'
+
+    #: APNS sandbox feedback server host.
     APNS_FEEDBACK_HOST = 'feedback.sandbox.push.apple.com'
 
 

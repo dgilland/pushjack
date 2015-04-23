@@ -7,7 +7,7 @@ Guide
 =====
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     install
     upgrading
@@ -19,7 +19,7 @@ API Reference
 Includes links to source code.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     api
 

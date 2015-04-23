@@ -59,7 +59,7 @@ Using the ``APNSClient`` class:
                 content_available=True,
                 title='Title',
                 title_loc_key='t_loc_key',
-                title_loc_args='loc_args',
+                title_loc_args='t_loc_args',
                 action_loc_key='a_loc_key',
                 loc_key='loc_key',
                 launch_image='path/to/image.jpg',
@@ -147,7 +147,8 @@ The config object for configuring a client is expected to be a ``dict`` or subcl
         'APNS_FEEDBACK_HOST': 'feedback.push.apple.com',
         'APNS_FEEDBACK_PORT': 2196,
         'APNS_ERROR_TIMEOUT': 0.5,
-        'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30
+        'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30,
+        'APNS_DEFAULT_BATCH_SIZE': 100
     }
 
 

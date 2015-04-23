@@ -408,7 +408,7 @@ def create_socket(host, port, certfile):
 
 
 def do_ssl_handshake(sock):
-    """Perform SSL socket handshake."""
+    """Perform SSL socket handshake for non-blocking socket."""
     while True:
         try:
             sock.do_handshake()
