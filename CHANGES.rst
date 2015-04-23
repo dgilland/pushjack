@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v0.5.0 (2015-04-22)
+-------------------
+
 - Add new APNS configuration value ``APNS_DEFAULT_BATCH_SIZE`` and set to ``100``.
 - Add ``batch_size`` parameter to APNS ``send`` that can be used to override ``APNS_DEFAULT_BATCH_SIZE``.
 - Make APNS ``send`` batch multiple notifications into a single payload. Previously, individual socket writes were performed for each token. Now, socket writes are batched based on either the ``APNS_DEFAULT_BATCH_SIZE`` configuration value or the ``batch_size`` function argument value.
