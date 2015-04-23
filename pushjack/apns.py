@@ -41,6 +41,8 @@ __all__ = (
     'send',
     'get_expired_tokens',
     'APNSExpiredToken',
+    'APNS_LOW_PRIORITY',
+    'APNS_HIGH_PRIORITY'
 )
 
 
@@ -59,6 +61,16 @@ APNS_ERROR_RESPONSE_COMMAND = 8
 APNS_ERROR_RESPONSE_LEN = 6
 APNS_FEEDBACK_HEADER_LEN = 6
 APNS_MAX_NOTIFICATION_SIZE = 2048
+
+#: Indicates that the push message should be sent at a time that conserves
+#: power on the device receiving it.
+APNS_LOW_PRIORITY = 5
+
+#: Indicates that the push message should be sent immediately. The remote
+#: notification must trigger an alert, sound, or badge on the device. It is an
+#: error to use this priority for a push that contains only the
+#: ``content_available`` key.
+APNS_HIGH_PRIORITY = 10
 
 
 class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
@@ -489,7 +501,7 @@ def send(ids,
          alert,
          config,
          expiration=None,
-         priority=10,
+         priority=APNS_HIGH_PRIORITY,
          batch_size=None,
          **options):
     """Send push notification to single device.
