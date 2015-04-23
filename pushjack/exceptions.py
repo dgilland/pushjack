@@ -54,9 +54,14 @@ class ServerError(NotificationError):
         self.identifier = identifier
 
     def __str__(self):  # pragma: no cover
-        return '{0}: {1} for identifier {2}'.format(self.code,
-                                                    self.description,
-                                                    self.identifier)
+        return '{0} (code={1}): {2} for identifier {3}'.format(
+            self.__class__.__name__,
+            self.code,
+            self.description,
+            self.identifier)
+
+    def __repr__(self):  # pragma: no cover
+        return str(self)
 
 
 class GCMError(NotificationError):
