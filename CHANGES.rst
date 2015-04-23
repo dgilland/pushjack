@@ -4,10 +4,11 @@ Changelog
 =========
 
 
+- Add new APNS configuration value ``APNS_DEFAULT_BATCH_SIZE`` and set to ``100``.
 - Add ``batch_size`` parameter to APNS ``send`` that can be used to override ``APNS_DEFAULT_BATCH_SIZE``.
 - Make APNS ``send`` batch multiple notifications into a single payload. Previously, individual socket writes were performed for each token. Now, socket writes are batched based on either the ``APNS_DEFAULT_BATCH_SIZE`` configuration value or the ``batch_size`` function argument value.
 - Make APNS ``send`` resume sending from after the failed token when an error response is received.
-- Make APNS ``send`` raise an ``APNSSendError`` containing an aggregation of errors, all tokens attempted, failed tokens, and successful tokens.
+- Make APNS ``send`` raise an ``APNSSendError`` when one or more error responses received. ``APNSSendError`` contains an aggregation of errors, all tokens attempted, failed tokens, and successful tokens. (**breaking change**)
 - Replace ``priority`` argument to APNS ``send`` with ``low_priority=False``. (**breaking change**)
 
 
