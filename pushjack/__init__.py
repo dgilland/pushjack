@@ -72,7 +72,7 @@ from .config import (
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
 try:  # Python 2.7+
-    from logging import NullHandler
+    from logging import NullHandler  # pylint: disable=no-name-in-module
 except ImportError:  # pragma: no cover
     class NullHandler(logging.Handler):
         def emit(self, record):
