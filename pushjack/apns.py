@@ -41,8 +41,6 @@ __all__ = (
     'send',
     'get_expired_tokens',
     'APNSExpiredToken',
-    'APNS_LOW_PRIORITY',
-    'APNS_HIGH_PRIORITY'
 )
 
 
@@ -501,7 +499,7 @@ def send(ids,
          alert,
          config,
          expiration=None,
-         priority=APNS_HIGH_PRIORITY,
+         low_priority=False,
          batch_size=None,
          **options):
     """Send push notification to single device.
@@ -516,19 +514,8 @@ def send(ids,
         expiration (int, optional): Expiration time of message in seconds
             offset from now. Defaults to ``None`` which uses
             ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
-        priority (int, optional): The alert’s priority. Provide one of the
-            following values:
-
-            - 10
-                The push message is sent immediately. The remote notification
-                must trigger an alert, sound, or badge on the device. It is an
-                error to use this priority for a push that contains only the
-                ``content_available`` key.
-            - 5
-                The push message is sent at a time that conserves power on the
-                device receiving it.
-
-            Defaults to ``10``.
+        low_priority (boolean, optional): Whether to send notification with the
+            low priority flag. Defaults to ``False``.
         batch_size (int, optional): Number of notifications to group together
             when sending. Defaults to ``None`` which uses
             ``config['APNS_DEFAULT_BATCH_SIZE']``.
@@ -594,6 +581,8 @@ def send(ids,
     if expiration is None:
         expiration = (int(time.time()) +
                       config['APNS_DEFAULT_EXPIRATION_OFFSET'])
+
+    priority = APNS_LOW_PRIORITY if low_priority else APNS_HIGH_PRIORITY
 
     if batch_size is None:
         batch_size = config['APNS_DEFAULT_BATCH_SIZE']

@@ -14,8 +14,6 @@ from .__meta__ import (
 
 from .apns import (
     APNSExpiredToken,
-    APNS_LOW_PRIORITY,
-    APNS_HIGH_PRIORITY,
 )
 
 from .clients import (

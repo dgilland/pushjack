@@ -154,8 +154,7 @@ def test_apns_use_extra(apns_client, apns_socket):
         apns_client.send(test_token,
                          'sample',
                          extra={'foo': 'bar'},
-                         expiration=30,
-                         priority=10)
+                         expiration=30)
 
         expected_payload = b'{"aps":{"alert":"sample"},"foo":"bar"}'
         pack_frame.assert_called_once_with(test_token,
@@ -169,8 +168,7 @@ def test_apns_socket_write(apns_client, apns_socket):
     apns_client.send('1' * 64,
                      'sample',
                      extra={'foo': 'bar'},
-                     expiration=30,
-                     priority=10)
+                     expiration=30)
 
     expected = mock.call.sendall(
         b'\x02\x00\x00\x00^\x01\x00 \x11\x11\x11\x11\x11'
