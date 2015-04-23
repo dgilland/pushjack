@@ -13,6 +13,7 @@ Google's documentation for GCM is available at:
 """
 
 from collections import namedtuple
+import logging
 
 import requests
 
@@ -25,6 +26,9 @@ __all__ = (
     'GCMCanonicalID',
     'GCMResponse',
 )
+
+
+log = logging.getLogger(__name__)
 
 
 # GCM only allows up to 1000 reg ids per bulk message.

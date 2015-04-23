@@ -18,6 +18,7 @@ Apple's documentation for APNS is available at:
 
 from binascii import hexlify, unhexlify
 from collections import namedtuple
+import logging
 import select
 import socket
 import ssl
@@ -40,6 +41,9 @@ __all__ = (
     'get_expired_tokens',
     'APNSExpiredToken',
 )
+
+
+log = logging.getLogger(__name__)
 
 
 # Constants derived from http://goo.gl/wFVr2S
