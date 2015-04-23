@@ -86,7 +86,7 @@ class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
 class APNSPayload(object):
     """APNS payload object that serializes to JSON."""
     def __init__(self,
-                 alert,
+                 alert=None,
                  badge=None,
                  sound=None,
                  category=None,
@@ -509,7 +509,8 @@ def send(ids,
     Args:
         ids (list): APNS device tokens. Each item is expected to be a 64
             character hex string.
-        alert (str|dict): Alert message or dictionary.
+        alert (str|dict): Alert message or dictionary. Set to ``None`` to
+            send an empty alert notification.
         config (dict): Configuration dictionary containing APNS configuration
             values. See :mod:`pushjack.config` for more details.
         expiration (int, optional): Expiration time of message in seconds
