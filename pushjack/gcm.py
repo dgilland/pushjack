@@ -96,6 +96,10 @@ class GCMPayloadStream(object):
         payload = self.payload.to_dict()
 
         for ids in chunk(self.payload.registration_ids, GCM_MAX_RECIPIENTS):
+            for id in ids:
+                log.debug(('Preparing notification for GCM id {0}'
+                           .format(id)))
+
             payload['registration_ids'] = ids
             yield json_dumps(payload)
 
@@ -114,11 +118,22 @@ class GCMRequest(object):
 
     def post(self, payload):
         """Send single POST request with payload to GCM server."""
+        log.debug(('Sending GCM notification batch containing {0} bytes.'
+                   .format(len(payload))))
         return self.session.post(self.url, payload)
 
     def send(self, stream):
         """Send payloads to GCM server and return list of responses."""
+        log.debug(('Preparing to send {0} notifications to GCM.'
+                   .format(len(stream))))
+
         response = GCMResponse([self.post(payload) for payload in stream])
+
+        log.debug('Sent {0} notifications to GCM.'.format(len(stream)))
+
+        if response.failures:
+            log.debug(('Encountered {0} errors while sending to GCM.'
+                       .format(len(response.failures))))
 
         return response
 

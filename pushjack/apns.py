@@ -191,6 +191,10 @@ class APNSPayloadStream(object):
         """Return whether all tokens have been processed."""
         return self.next_identifier >= len(self.tokens)
 
+    def __len__(self):
+        """Return count of number of notifications."""
+        return len(self.tokens)
+
     def __iter__(self):
         """Iterate through each device token and yield APNS socket frame."""
         payload = self.payload.to_json()
@@ -200,6 +204,9 @@ class APNSPayloadStream(object):
 
         for token_chunk in chunk(tokens, self.batch_size):
             for token in token_chunk:
+                log.debug(('Preparing notification for APNS token {0}'
+                           .format(token)))
+
                 data += pack_frame(token,
                                    self.next_identifier,
                                    payload,
@@ -262,11 +269,19 @@ class APNSConnection(object):
         if self.sock:
             return
 
+        log.debug(('Establishing connection to APNS on {0}:{1} using '
+                   'certificate at {2}'
+                   .format(self.host, self.port, self.certfile)))
+
         self.sock = create_socket(self.host, self.port, self.certfile)
+
+        log.debug(('Established connection to APNS on {0}:{1}.'
+                   .format(self.host, self.port)))
 
     def close(self):
         """Disconnect from APNS server."""
         if self.sock:
+            log.debug('Closing connection to APNS.')
             self.sock.close()
         self.sock = None
 
@@ -281,6 +296,8 @@ class APNSConnection(object):
         try:
             return select.select([], [self.client], [], timeout)[1]
         except Exception:  # pragma: no cover
+            log.debug(('Error while waiting for APNS socket to become '
+                       'writable.'))
             self.close()
             raise
 
@@ -289,6 +306,8 @@ class APNSConnection(object):
         try:
             return select.select([self.client], [], [], timeout)[0]
         except Exception:  # pragma: no cover
+            log.debug(('Error while waiting for APNS socket to become '
+                       'readable.'))
             self.close()
             raise
 
@@ -327,6 +346,9 @@ class APNSConnection(object):
             self.close()
             raise socket.timeout
 
+        log.debug(('Sending APNS notification batch containing {0} bytes.'
+                   .format(len(data))))
+
         return self.client.sendall(data)
 
     def check_error(self, timeout=10):
@@ -345,10 +367,14 @@ class APNSConnection(object):
                                    .format(APNS_ERROR_RESPONSE_COMMAND,
                                            command)))
 
-        status, identifier = struct.unpack('>BI', data[1:])
+        code, identifier = struct.unpack('>BI', data[1:])
+
+        log.debug(('Received APNS error response with '
+                   'code={0} for identifier={1}.'
+                   .format(code, identifier)))
 
         self.close()
-        raise_apns_server_error(status, identifier)
+        raise_apns_server_error(code, identifier)
 
     def send(self, frames):
         """Send stream of frames to APNS server."""
@@ -361,6 +387,9 @@ class APNSConnection(object):
         then resume sending starting from after the token that failed. If any
         tokens failed, raise an error after sending all tokens.
         """
+        log.debug(('Preparing to send {0} notifications to APNS.'
+                   .format(len(stream))))
+
         errors = []
 
         while True:
@@ -377,7 +406,11 @@ class APNSConnection(object):
             if stream.eof():
                 break
 
+        log.debug('Sent {0} notifications to APNS.'.format(len(stream)))
+
         if errors:
+            log.debug(('Encountered {0} errors while sending to APNS.'
+                       .format(len(errors))))
             raise APNSSendError('APNS send error', errors, stream.tokens)
 
 
@@ -400,8 +433,11 @@ def create_socket(host, port, certfile):
                            certfile=certfile,
                            do_handshake_on_connect=False)
     sock.connect((host, port))
-
     sock.setblocking(0)
+
+    log.debug(('Performing SSL handshake with APNS on {0}:{1}'
+               .format(host, port)))
+
     do_ssl_handshake(sock)
 
     return sock
@@ -620,7 +656,12 @@ def get_expired_tokens(config):
     conn = APNSConnection(config['APNS_FEEDBACK_HOST'],
                           config['APNS_FEEDBACK_PORT'],
                           config['APNS_CERTIFICATE'])
+
+    log.debug('Preparing to check for expired APNS tokens.')
+
     expired = list(APNSFeedbackStream(conn))
     conn.close()
+
+    log.debug('Received {0} expired APNS tokens.'.format(len(expired)))
 
     return expired
