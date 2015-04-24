@@ -31,6 +31,7 @@ from .exceptions import (
     APNSAuthError,
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
+    APNSMissingPayloadError,
     APNSSendError,
     APNSServerError,
     raise_apns_server_error
@@ -154,7 +155,11 @@ class APNSPayload(object):
 
     def __len__(self):
         """Return length of serialized payload."""
-        return len(self.to_json())
+        if not self.to_dict():
+            # Consider payload length 0 if there is no payload data.
+            return 0
+        else:
+            return len(self.to_json())
 
 
 class APNSPayloadStream(object):
@@ -524,6 +529,9 @@ def validate_tokens(tokens):
 
 def validate_payload(payload):
     """Check whether `payload` is valid."""
+    if len(payload) == 0:
+        raise APNSMissingPayloadError('Notification body size cannot be 0')
+
     if len(payload) > APNS_MAX_NOTIFICATION_SIZE:
         raise APNSInvalidPayloadSizeError(
             ('Notification body cannot exceed '

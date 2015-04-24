@@ -205,7 +205,7 @@ def test_apns_invalid_payload_size(apns_client):
 def test_apns_error_handling(apns_client, code, exception):
     with apns_create_error_socket(code) as create_socket:
         try:
-            apns_client.send(apns_tokens(1), '')
+            apns_client.send(apns_tokens(1), 'foo')
         except exceptions.APNSSendError as ex:
             assert isinstance(ex.errors[0], exception)
 
