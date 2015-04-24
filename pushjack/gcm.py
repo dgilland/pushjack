@@ -108,9 +108,15 @@ class GCMRequest(object):
             'Content-Type': 'application/json',
         })
 
-    def send(self, payloads):
+    def post(self, payload):
+        """Send single POST request with payload to GCM server."""
+        return self.session.post(self.url, payload)
+
+    def send(self, stream):
         """Send payloads to GCM server and return list of responses."""
-        return [self.session.post(self.url, payload) for payload in payloads]
+        response = GCMResponse([self.post(payload) for payload in stream])
+
+        return response
 
 
 class GCMResponse(object):
@@ -262,6 +268,6 @@ def send(ids, alert, config, **options):
 
     request = GCMRequest(config)
     payload = GCMPayload(ids, alert, **options)
-    responses = request.send(GCMPayloadStream(payload))
+    response = request.send(GCMPayloadStream(payload))
 
-    return GCMResponse(responses)
+    return response
