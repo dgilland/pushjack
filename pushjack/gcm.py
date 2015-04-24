@@ -89,8 +89,9 @@ class GCMPayloadStream(object):
 
     def __iter__(self):
         """Iterate through and yield chunked payloads."""
+        payload = self.payload.to_dict()
+
         for ids in chunk(self.payload.registration_ids, GCM_MAX_RECIPIENTS):
-            payload = self.payload.to_dict()
             payload['registration_ids'] = ids
             yield json_dumps(payload)
 
