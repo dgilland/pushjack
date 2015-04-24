@@ -34,6 +34,7 @@ from .exceptions import (
     APNSMissingPayloadError,
     APNSSendError,
     APNSServerError,
+    APNSUnsendableError,
     raise_apns_server_error
 )
 
@@ -191,6 +192,9 @@ class APNSPayloadStream(object):
             identifier (int): Index of tokens to skip.
         """
         self.next_identifier = identifier + 1
+
+    def peek(self, n=None):
+        return self.tokens[self.next_identifier:n]
 
     def eof(self):
         """Return whether all tokens have been processed."""
@@ -408,6 +412,13 @@ class APNSConnection(object):
                 errors.append(ex)
                 stream.seek(ex.identifier)
 
+                if ex.fatal:
+                    # We can't continue due to a fatal error. Go ahead and
+                    # convert remaining notifications to errors.
+                    errors += [APNSUnsendableError(i + ex.identifier)
+                               for i, _ in enumerate(stream.peek())]
+                    break
+
             if stream.eof():
                 break
 
@@ -416,7 +427,7 @@ class APNSConnection(object):
         if errors:
             log.debug(('Encountered {0} errors while sending to APNS.'
                        .format(len(errors))))
-            raise APNSSendError('APNS send error', errors, stream.tokens)
+            raise APNSSendError('APNS send error', stream.tokens, errors)
 
 
 def create_socket(host, port, certfile):

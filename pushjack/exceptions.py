@@ -43,6 +43,7 @@ class NotificationError(Exception):
     """Base exception for all notification errors."""
     code = None
     description = None
+    fatal = False
 
 
 class ServerError(NotificationError):
@@ -95,12 +96,14 @@ class APNSMissingTopicError(APNSServerError):
     """Exception for APNS missing topic error."""
     code = 3
     description = 'Missing topic'
+    fatal = True
 
 
 class APNSMissingPayloadError(APNSServerError):
     """Exception for APNS payload error."""
     code = 4
     description = 'Missing payload'
+    fatal = True
 
 
 class APNSInvalidTokenSizeError(APNSServerError):
@@ -113,12 +116,14 @@ class APNSInvalidTopicSizeError(APNSServerError):
     """Exception for APNS invalid topic size error."""
     code = 6
     description = 'Invalid topic size'
+    fatal = True
 
 
 class APNSInvalidPayloadSizeError(APNSServerError):
     """Exception for APNS invalid payload size error."""
     code = 7
     description = 'Invalid payload size'
+    fatal = True
 
 
 class APNSInvalidTokenError(APNSServerError):
@@ -139,6 +144,13 @@ class APNSUnknownError(APNSServerError):
     description = 'Unknown'
 
 
+class APNSUnsendableError(APNSError):
+    """Exception for when notification can't be send due to previous error for
+    another notification.
+    """
+    description = 'Unable to send due to previous error'
+
+
 class APNSSendError(APNSError):
     """Exception for errors from bulk sending.
 
@@ -150,7 +162,7 @@ class APNSSendError(APNSError):
         token_errors (dict): Dict mapping the failed tokens to their respective
             APNS exception.
     """
-    def __init__(self, message, errors, tokens):
+    def __init__(self, message, tokens, errors):
         super(APNSSendError, self).__init__(message)
         self.tokens = tokens
         self.errors = errors
