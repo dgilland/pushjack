@@ -174,5 +174,70 @@ Configuration
     :members:
 
 
-Exceptions
-----------
+Logging
+-------
+
+Internal logging is handled with the `logging module <https://docs.python.org/library/logging.html>`_. The logger names used are:
+
+- ``pushjack``
+- ``pushjack.apns``
+- ``pushjack.gcm``
+
+
+Enabling
+++++++++
+
+To enable logging using an imperative approach:
+
+.. code-block:: python
+
+    import logging
+    import pushjack
+
+    logger = logging.getLogger('pushjack')
+    logger.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(stream_handler)
+
+
+To enable logging using a configuration approach:
+
+.. code-block:: python
+
+    import logging
+    import logging.config
+    import pushjack
+
+    logging.config.dictConfig({
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'level': 'DEBUG'
+            }
+        },
+        'loggers': {
+            'pushjack': {
+                'handlers': ['console']
+            }
+        }
+    })
+
+For additional configuration options, you may wish to install `logconfig <http://logconfig.readthedocs.org/>`_:
+
+::
+
+    pip install logconfig
+
+
+.. code-block:: python
+
+    import logconfig
+    import pushjack
+
+    logconfig.from_yaml('path/to/logconfig.yml')
