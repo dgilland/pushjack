@@ -87,6 +87,10 @@ class GCMPayloadStream(object):
     def __init__(self, payload):
         self.payload = payload
 
+    def __len__(self):
+        """Return count of number of notifications."""
+        return len(self.payload.registration_ids)
+
     def __iter__(self):
         """Iterate through and yield chunked payloads."""
         payload = self.payload.to_dict()
