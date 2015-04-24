@@ -64,87 +64,6 @@ class ServerError(NotificationError):
         return str(self)
 
 
-class GCMError(NotificationError):
-    """Base exception for GCM errors."""
-    pass
-
-
-class GCMAuthError(GCMError):
-    """Exception for error with GCM API key."""
-    pass
-
-
-class GCMServerError(ServerError):
-    """Base exception for GCM Server errors."""
-    pass
-
-
-class GCMMissingRegistrationError(GCMServerError):
-    """Exception for missing registration ID."""
-    code = 'MissingRegistration'
-    description = 'Missing registration ID'
-
-
-class GCMInvalidRegistrationError(GCMServerError):
-    """Exception for invalid registration ID"""
-    code = 'InvalidRegistration'
-    description = 'Invalid registration ID'
-
-
-class GCMUnregisteredDeviceError(GCMServerError):
-    """Exception for unregistered device."""
-    code = 'NotRegistered'
-    description = 'Device not registered'
-
-
-class GCMInvalidPackageNameError(GCMServerError):
-    """Exception for invalid package name."""
-    code = 'InvalidPackageName'
-    description = 'Invalid package name'
-
-
-class GCMMismatchedSenderError(GCMServerError):
-    """Exception for mismatched sender."""
-    code = 'MismatchSenderId'
-    description = 'Mismatched sender ID'
-
-
-class GCMMessageTooBigError(GCMServerError):
-    """Exception for message too big."""
-    code = 'MessageTooBig'
-    description = 'Message too big'
-
-
-class GCMInvalidDataKeyError(GCMServerError):
-    """Exception for invalid data key."""
-    code = 'InvalidDataKey'
-    description = 'Invalid data key'
-
-
-class GCMInvalidTimeToLiveError(GCMServerError):
-    """Exception for invalid time to live."""
-    code = 'InvalidTtl'
-    description = 'Invalid time to live'
-
-
-class GCMTimeoutError(GCMServerError):
-    """Exception for server timeout."""
-    code = 'Unavailable'
-    description = 'Timeout'
-
-
-class GCMInternalServerError(GCMServerError):
-    """Exception for internal server error."""
-    code = 'InternalServerError'
-    description = 'Internal server error'
-
-
-class GCMDeviceMessageRateExceededError(GCMServerError):
-    """Exception for device message rate exceeded."""
-    code = 'DeviceMessageRateExceeded'
-    description = 'Device message rate exceeded'
-
-
 class APNSError(NotificationError):
     """Base exception for APNS errors."""
     pass
@@ -248,6 +167,87 @@ class APNSSendError(APNSError):
                           if token not in self.failures]
 
 
+class GCMError(NotificationError):
+    """Base exception for GCM errors."""
+    pass
+
+
+class GCMAuthError(GCMError):
+    """Exception for error with GCM API key."""
+    pass
+
+
+class GCMServerError(ServerError):
+    """Base exception for GCM Server errors."""
+    pass
+
+
+class GCMMissingRegistrationError(GCMServerError):
+    """Exception for missing registration ID."""
+    code = 'MissingRegistration'
+    description = 'Missing registration ID'
+
+
+class GCMInvalidRegistrationError(GCMServerError):
+    """Exception for invalid registration ID"""
+    code = 'InvalidRegistration'
+    description = 'Invalid registration ID'
+
+
+class GCMUnregisteredDeviceError(GCMServerError):
+    """Exception for unregistered device."""
+    code = 'NotRegistered'
+    description = 'Device not registered'
+
+
+class GCMInvalidPackageNameError(GCMServerError):
+    """Exception for invalid package name."""
+    code = 'InvalidPackageName'
+    description = 'Invalid package name'
+
+
+class GCMMismatchedSenderError(GCMServerError):
+    """Exception for mismatched sender."""
+    code = 'MismatchSenderId'
+    description = 'Mismatched sender ID'
+
+
+class GCMMessageTooBigError(GCMServerError):
+    """Exception for message too big."""
+    code = 'MessageTooBig'
+    description = 'Message too big'
+
+
+class GCMInvalidDataKeyError(GCMServerError):
+    """Exception for invalid data key."""
+    code = 'InvalidDataKey'
+    description = 'Invalid data key'
+
+
+class GCMInvalidTimeToLiveError(GCMServerError):
+    """Exception for invalid time to live."""
+    code = 'InvalidTtl'
+    description = 'Invalid time to live'
+
+
+class GCMTimeoutError(GCMServerError):
+    """Exception for server timeout."""
+    code = 'Unavailable'
+    description = 'Timeout'
+
+
+class GCMInternalServerError(GCMServerError):
+    """Exception for internal server error."""
+    code = 'InternalServerError'
+    description = 'Internal server error'
+
+
+class GCMDeviceMessageRateExceededError(GCMServerError):
+    """Exception for device message rate exceeded."""
+    code = 'DeviceMessageRateExceeded'
+    description = 'Device message rate exceeded'
+
+
 class Raiser(object):
     """Helper class for raising an exception based on error class name prefix
     and exception code.
@@ -266,16 +266,16 @@ class Raiser(object):
         raise self.mapping[code](identifier)
 
 
-class GCMServerRaiser(Raiser):
-    """Exception raiser classs for GCM server errors."""
-    prefix = 'GCM'
-    fallback_exception = GCMServerError
-
-
 class APNSServerRasier(Raiser):
     """Exception raiser class for APNS errors."""
     prefix = 'APNS'
     fallback_exception = APNSUnknownError
+
+
+class GCMServerRaiser(Raiser):
+    """Exception raiser classs for GCM server errors."""
+    prefix = 'GCM'
+    fallback_exception = GCMServerError
 
 
 def map_errors(prefix):
@@ -287,8 +287,8 @@ def map_errors(prefix):
     return mapping
 
 
-gcm_server_errors = map_errors('GCM')
 apns_server_errors = map_errors('APNS')
+gcm_server_errors = map_errors('GCM')
 
 
 #: Helper method to raise GCM server errors.
