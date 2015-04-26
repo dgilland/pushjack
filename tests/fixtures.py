@@ -66,7 +66,7 @@ class TCPClientServer(object):
 @pytest.fixture
 def apns_client():
     """Return APNS client."""
-    return APNSClient(certificate=None, error_timeout=0)
+    return APNSClient(certificate=None, default_error_timeout=0)
 
 
 def apns_socket_factory(connect=None):

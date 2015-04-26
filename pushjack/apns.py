@@ -93,14 +93,13 @@ class APNSClient(object):
 
     def __init__(self,
                  certificate,
-                 error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
-                 expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
-                 batch_size=APNS_DEFAULT_BATCH_SIZE):
-        # TODO: raise if certificate not set
+                 default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
+                 default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
+                 default_batch_size=APNS_DEFAULT_BATCH_SIZE):
         self.certificate = certificate
-        self.error_timeout = error_timeout
-        self.expiration_offset = expiration_offset
-        self.batch_size = batch_size
+        self.default_error_timeout = default_error_timeout
+        self.default_expiration_offset = default_expiration_offset
+        self.default_batch_size = default_batch_size
         self._conn = None
 
     @property
@@ -216,13 +215,13 @@ class APNSClient(object):
             priority = APNS_HIGH_PRIORITY
 
         if expiration is None:
-            expiration = int(time.time()) + self.expiration_offset
+            expiration = int(time.time() + self.default_expiration_offset)
 
         if batch_size is None:
-            batch_size = self.batch_size
+            batch_size = self.default_batch_size
 
         if error_timeout is None:
-            error_timeout = self.error_timeout
+            error_timeout = self.default_error_timeout
 
         stream = APNSPayloadStream(ids,
                                    payload,
