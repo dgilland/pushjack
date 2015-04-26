@@ -11,7 +11,7 @@ from pushjack import (
     create_gcm_config,
     exceptions
 )
-from pushjack.gcm import GCMRequest
+from pushjack.gcm import GCMConnection
 from pushjack.utils import json_dumps
 
 from .fixtures import (
@@ -151,26 +151,17 @@ def test_gcm_invalid_api_key(gcm_client):
         gcm_client.send('abc', {})
 
 
-def test_gcm_create_request():
+def test_gcm_create_connection():
     config = {
         'GCM_API_KEY': '1234',
         'GCM_URL': 'http://example.com'
     }
 
-    request = GCMRequest(config)
+    conn = GCMConnection(config['GCM_API_KEY'], config['GCM_URL'])
 
-    assert request.url == config['GCM_URL']
-    assert request.session.auth == ('key', config['GCM_API_KEY'])
-    assert request.session.headers['Content-Type'] == 'application/json'
-
-
-@parametrize('method', [
-    'send',
-])
-def test_gcm_create_request_when_sending(gcm_client, method):
-    with mock.patch('pushjack.gcm.GCMRequest') as request:
-        getattr(gcm_client, method)(['abc'], {})
-        request.assert_called_with(gcm_client.config)
+    assert conn.url == config['GCM_URL']
+    assert conn.session.auth == ('key', config['GCM_API_KEY'])
+    assert conn.session.headers['Content-Type'] == 'application/json'
 
 
 @parametrize('tokens,data,extra,expected', [
@@ -185,7 +176,7 @@ def test_gcm_create_request_when_sending(gcm_client, method):
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
-def test_gcm_request_call(gcm_client, tokens, data, extra, expected):
+def test_gcm_connection_call(gcm_client, tokens, data, extra, expected):
     with mock.patch('requests.Session') as Session:
         gcm_client.send(tokens, data, **extra)
         assert expected in Session.mock_calls

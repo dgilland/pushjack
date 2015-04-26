@@ -22,14 +22,17 @@ from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 
 __all__ = (
-    'send',
     'GCMCanonicalID',
+    'GCMConnection',
     'GCMResponse',
+    'send',
 )
 
 
 log = logging.getLogger(__name__)
 
+
+GCM_URL = 'https://android.googleapis.com/gcm/send'
 
 # GCM only allows up to 1000 reg ids per bulk message.
 GCM_MAX_RECIPIENTS = 1000
@@ -104,11 +107,11 @@ class GCMPayloadStream(object):
             yield json_dumps(payload)
 
 
-class GCMRequest(object):
+class GCMConnection(object):
     """Wrapper around requests session bound to GCM config."""
-    def __init__(self, config):
-        self.api_key = config.get('GCM_API_KEY')
-        self.url = config.get('GCM_URL')
+    def __init__(self, api_key, url=GCM_URL):
+        self.api_key = api_key
+        self.url = url
 
         self.session = requests.Session()
         self.session.auth = ('key', self.api_key)
@@ -236,14 +239,13 @@ class GCMResponse(object):
                                                  canonical_id))
 
 
-def send(ids, alert, config, **options):
+def send(ids, alert, conn, **options):
     """Sends a GCM notification to one or more IDs.
 
     Args:
         id_ (str): GCM device registration ID.
         alert (str|dict): Alert message or dictionary.
-        config (dict): Configuration dictionary containing APNS configuration
-            values. See :mod:`pushjack.config` for more details.
+        conn (GCMConnection): Provide :class:`GCMConnection` instance.
         request (callable, optional): Callable object that makes POST request
             to GCM service. Defaults to ``None`` which creates its own request
             callable.
@@ -268,7 +270,6 @@ def send(ids, alert, config, **options):
         Response: ``requests.Response`` object from GCM server.
 
     Raises:
-        GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
         GCMServerError: If GCM server response indicates failure. See
             :mod:`pushjack.exceptions` for full listing.
 
@@ -279,14 +280,10 @@ def send(ids, alert, config, **options):
         - Added support for bulk sending.
         - Removed `request` argument.
     """
-    if not config['GCM_API_KEY']:
-        raise GCMAuthError('Missing GCM API key. Cannot send notifications.')
-
     if not isinstance(ids, (list, tuple)):
         ids = [ids]
 
-    request = GCMRequest(config)
     payload = GCMPayload(ids, alert, **options)
-    response = request.send(GCMPayloadStream(payload))
+    response = conn.send(GCMPayloadStream(payload))
 
     return response

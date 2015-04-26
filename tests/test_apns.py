@@ -272,7 +272,7 @@ def test_apns_config():
     assert config['APNS_FEEDBACK_HOST'] == 'feedback.push.apple.com'
     assert config['APNS_FEEDBACK_PORT'] == 2196
     assert config['APNS_CERTIFICATE'] == None
-    assert config['APNS_ERROR_TIMEOUT'] == 10
+    assert config['APNS_DEFAULT_ERROR_TIMEOUT'] == 10
     assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
     assert config['APNS_DEFAULT_BATCH_SIZE'] == 100
 
@@ -286,7 +286,7 @@ def test_apns_sandbox_config():
     assert config['APNS_FEEDBACK_HOST'] == 'feedback.sandbox.push.apple.com'
     assert config['APNS_FEEDBACK_PORT'] == 2196
     assert config['APNS_CERTIFICATE'] == None
-    assert config['APNS_ERROR_TIMEOUT'] == 10
+    assert config['APNS_DEFAULT_ERROR_TIMEOUT'] == 10
     assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
     assert config['APNS_DEFAULT_BATCH_SIZE'] == 100
 

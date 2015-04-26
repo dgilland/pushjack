@@ -13,6 +13,7 @@ from .__meta__ import (
 )
 
 from .apns import (
+    APNSConnection,
     APNSExpiredToken,
 )
 
@@ -56,6 +57,7 @@ from .exceptions import (
 
 from .gcm import (
     GCMCanonicalID,
+    GCMConnection,
     GCMResponse,
 )
 

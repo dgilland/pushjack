@@ -80,8 +80,9 @@ Using the APNS module directly:
     from pushjack import apns
 
     # Call signature is the same as APNSClient
-    # except the configuration must be passed in.
-    apns.send(token, alert, config, **options)
+    # except the connection must be passed in.
+    conn = apns.APNSConnection(config['APNS_HOST'], config['APNS_PORT'])
+    apns.send(token, alert, conn, **options)
 
 
 GCM
@@ -123,8 +124,9 @@ Using the GCM module directly:
     from pushjack import gcm
 
     # Call signature is the same as GCMClient
-    # except the configuration must be passed in.
-    gcm.send(token, alert, config, **options)
+    # except the connection must be passed in.
+    conn = gcm.GCMConnection(config['API_KEY'], config['API_URL'])
+    gcm.send(token, alert, conn, **options)
 
 
 Config
@@ -146,7 +148,7 @@ The config object for configuring a client is expected to be a ``dict`` or subcl
         'APNS_PORT': 2195,
         'APNS_FEEDBACK_HOST': 'feedback.push.apple.com',
         'APNS_FEEDBACK_PORT': 2196,
-        'APNS_ERROR_TIMEOUT': 0.5,
+        'APNS_DEFAULT_ERROR_TIMEOUT': 10,
         'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30,
         'APNS_DEFAULT_BATCH_SIZE': 100
     }

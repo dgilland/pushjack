@@ -40,14 +40,26 @@ from .exceptions import (
 
 
 __all__ = (
+    'APNSConnection',
+    'APNSExpiredToken',
     'send',
     'get_expired_tokens',
-    'APNSExpiredToken',
 )
 
 
 log = logging.getLogger(__name__)
 
+
+APNS_HOST = 'gateway.push.apple.com'
+APNS_SANDBOX_HOST = 'gateway.sandbox.push.apple.com'
+APNS_PORT = 2195
+APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
+APNS_FEEDBACK_SANDBOX_HOST = 'feedback.sandbox.push.apple.com'
+APNS_FEEDBACK_PORT = 2196
+
+APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
+APNS_DEFAULT_BATCH_SIZE = 100
+APNS_DEFAULT_ERROR_TIMEOUT = 10
 
 # Constants derived from http://goo.gl/wFVr2S
 APNS_PUSH_COMMAND = 2
@@ -265,10 +277,10 @@ class APNSFeedbackStream(object):
 
 class APNSConnection(object):
     """Manager for APNS socket connection."""
-    def __init__(self, host, port, certfile):
+    def __init__(self, certfile, host=APNS_HOST, port=APNS_PORT):
+        self.certfile = certfile
         self.host = host
         self.port = port
-        self.certfile = certfile
         self.sock = None
 
     def connect(self):
@@ -552,10 +564,11 @@ def validate_payload(payload):
 
 def send(ids,
          alert,
-         config,
+         conn,
          expiration=None,
          low_priority=False,
          batch_size=None,
+         error_timeout=None,
          **options):
     """Send push notification to single device.
 
@@ -564,8 +577,9 @@ def send(ids,
             character hex string.
         alert (str|dict): Alert message or dictionary. Set to ``None`` to
             send an empty alert notification.
-        config (dict): Configuration dictionary containing APNS configuration
-            values. See :mod:`pushjack.config` for more details.
+        conn (APNSConnection, optional): Provide :class:`APNSConnection`
+            instance. Defaults to ``None`` which creates a non-persistent
+            connection.
         expiration (int, optional): Expiration time of message in seconds
             offset from now. Defaults to ``None`` which uses
             ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -633,18 +647,20 @@ def send(ids,
     validate_tokens(ids)
     validate_payload(payload)
 
-    if expiration is None:
+    if low_priority:
+        priority = APNS_LOW_PRIORITY
+    else:
+        priority = APNS_HIGH_PRIORITY
+
+    if expiration is None:  # pragma: no cover
         expiration = (int(time.time()) +
-                      config['APNS_DEFAULT_EXPIRATION_OFFSET'])
+                      APNS_DEFAULT_EXPIRATION_OFFSET)
 
-    priority = APNS_LOW_PRIORITY if low_priority else APNS_HIGH_PRIORITY
+    if batch_size is None:  # pragma: no cover
+        batch_size = APNS_DEFAULT_BATCH_SIZE
 
-    if batch_size is None:
-        batch_size = config['APNS_DEFAULT_BATCH_SIZE']
-
-    conn = APNSConnection(config['APNS_HOST'],
-                          config['APNS_PORT'],
-                          config['APNS_CERTIFICATE'])
+    if error_timeout is None:  # pragma: no cover
+        error_timeout = APNS_DEFAULT_ERROR_TIMEOUT
 
     stream = APNSPayloadStream(ids,
                                payload,
@@ -652,34 +668,25 @@ def send(ids,
                                priority,
                                batch_size)
 
-    conn.sendall(stream, config['APNS_ERROR_TIMEOUT'])
-
-    conn.close()
+    conn.sendall(stream, error_timeout)
 
 
-def get_expired_tokens(config):
+def get_expired_tokens(conn):
     """Return inactive device ids that can't be pushed to anymore.
 
     Args:
-        config (dict): Configuration dictionary containing APNS configuration
-            values. See :mod:`pushjack.config` for more details.
-        conn (APNSConnection, optional): Provide APNSConnection instance.
-            Connection is assumed to have been preconfigured and ready
-            to use. Default is ``None``.
+        conn (APNSConnection, optional): Provide :class:`APNSConnection`
+            instance. Defaults to ``None`` which creates a non-persistent
+            connection.
 
     Returns:
         list: List of :class:`APNSExpiredToken`.
 
     .. versionadded:: 0.0.1
     """
-    conn = APNSConnection(config['APNS_FEEDBACK_HOST'],
-                          config['APNS_FEEDBACK_PORT'],
-                          config['APNS_CERTIFICATE'])
-
     log.debug('Preparing to check for expired APNS tokens.')
 
     expired = list(APNSFeedbackStream(conn))
-    conn.close()
 
     log.debug('Received {0} expired APNS tokens.'.format(len(expired)))
 

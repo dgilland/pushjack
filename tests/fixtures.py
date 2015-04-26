@@ -68,9 +68,7 @@ class TCPClientServer(object):
 @pytest.fixture
 def apns_client():
     """Return APNS client."""
-    config = create_apns_config()
-    config['APNS_ERROR_TIMEOUT'] = 0
-    return APNSClient(config)
+    return APNSClient(create_apns_config({'APNS_DEFAULT_ERROR_TIMEOUT': 0}))
 
 
 def apns_socket_factory(connect=None):
