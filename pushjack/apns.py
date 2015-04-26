@@ -231,8 +231,8 @@ class APNSClient(object):
 
         self.conn.sendall(stream, error_timeout)
 
-    def get_expired(self):
         """Return inactive device ids that can't be pushed to anymore.
+    def get_expired_tokens(self):
 
         Returns:
             list: List of :class:`APNSExpiredToken`.

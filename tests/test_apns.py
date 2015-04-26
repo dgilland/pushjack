@@ -215,7 +215,7 @@ def test_apns_error_handling(apns_client, code, exception):
 def test_apns_get_expired_tokens(apns_client, tokens):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
         create_socket.return_value = apns_feedback_socket_factory(tokens)
-        expired_tokens = apns_client.get_expired()
+        expired_tokens = apns_client.get_expired_tokens()
 
         assert len(expired_tokens) == len(tokens)
 
