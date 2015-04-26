@@ -13,13 +13,15 @@ from .__meta__ import (
 )
 
 from .apns import (
-    APNSConnection,
+    APNSClient,
     APNSExpiredToken,
+    APNSSandboxClient,
 )
 
-from .clients import (
-    APNSClient,
+from .gcm import (
+    GCMCanonicalID,
     GCMClient,
+    GCMResponse,
 )
 
 from .exceptions import (
@@ -55,22 +57,6 @@ from .exceptions import (
     ServerError,
 )
 
-from .gcm import (
-    GCMCanonicalID,
-    GCMConnection,
-    GCMResponse,
-)
-
-from .config import (
-    APNSConfig,
-    APNSSandboxConfig,
-    GCMConfig,
-    create_apns_config,
-    create_apns_sandbox_config,
-    create_gcm_config
-)
-
-
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
 
@@ -80,5 +66,6 @@ except ImportError:  # pragma: no cover
     class NullHandler(logging.Handler):
         def emit(self, record):
             pass
+
 
 logging.getLogger(__name__).addHandler(NullHandler())

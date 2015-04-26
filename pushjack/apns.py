@@ -40,10 +40,9 @@ from .exceptions import (
 
 
 __all__ = (
-    'APNSConnection',
+    'APNSClient',
     'APNSExpiredToken',
-    'send',
-    'get_expired_tokens',
+    'APNSSandboxClient',
 )
 
 
@@ -83,6 +82,177 @@ APNS_LOW_PRIORITY = 5
 #: error to use this priority for a push that contains only the
 #: ``content_available`` key.
 APNS_HIGH_PRIORITY = 10
+
+
+class APNSClient(object):
+    """APNS client class."""
+    host = APNS_HOST
+    port = APNS_PORT
+    feedback_host = APNS_FEEDBACK_HOST
+    feedback_port = APNS_FEEDBACK_PORT
+
+    def __init__(self,
+                 certificate,
+                 error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
+                 expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
+                 batch_size=APNS_DEFAULT_BATCH_SIZE):
+        # TODO: raise if certificate not set
+        self.certificate = certificate
+        self.error_timeout = error_timeout
+        self.expiration_offset = expiration_offset
+        self.batch_size = batch_size
+        self._conn = None
+
+    @property
+    def conn(self):
+        """Lazily return connection."""
+        if not self._conn:
+            self._conn = self.create_connection()
+        return self._conn
+
+    def create_connection(self):
+        """Return APNS connection to push server."""
+        return APNSConnection(self.host, self.port, self.certificate)
+
+    def create_feedback_connection(self):
+        """Return APNS connection to feedback server."""
+        return APNSConnection(self.feedback_host,
+                              self.feedback_port,
+                              self.certificate)
+
+    def close(self):
+        """Close APNS connection."""
+        self.conn.close()
+
+    def send(self,
+             ids,
+             alert,
+             expiration=None,
+             low_priority=None,
+             batch_size=None,
+             error_timeout=None,
+             **options):
+        """Send push notification to single or multiple recipients.
+
+        Args:
+            ids (list): APNS device tokens. Each item is expected to be a 64
+                character hex string.
+            alert (str|dict): Alert message or dictionary. Set to ``None`` to
+                send an empty alert notification.
+            conn (APNSConnection, optional): Provide :class:`APNSConnection`
+                instance. Defaults to ``None`` which creates a non-persistent
+                connection.
+            expiration (int, optional): Expiration time of message in seconds
+                offset from now. Defaults to ``None`` which uses
+                ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
+            low_priority (boolean, optional): Whether to send notification with
+                the low priority flag. Defaults to ``False``.
+            batch_size (int, optional): Number of notifications to group
+                together when sending. Defaults to ``None`` which uses
+                ``config['APNS_DEFAULT_BATCH_SIZE']``.
+
+        Keyword Args:
+            badge (int, optional): Badge number count for alert. Defaults to
+                ``None``.
+            sound (str, optional): Name of the sound file to play for alert.
+                Defaults to ``None``.
+            category (str, optional): Name of category. Defaults to ``None``.
+            content_available (bool, optional): If ``True``, indicate that new
+                content is available. Defaults to ``None``.
+            title (str, optional): Alert title.
+            title_loc_key (str, optional): The key to a title string in the
+                ``Localizable.strings`` file for the current localization.
+            title_loc_args (list, optional): List of string values to appear in
+                place of the format specifiers in `title_loc_key`.
+            action_loc_key (str, optional): Display an alert that includes the
+                ``Close`` and ``View`` buttons. The string is used as a key to
+                get a localized string in the current localization to use for
+                the right button’s title instead of ``“View”``.
+            loc_key (str, optional): A key to an alert-message string in a
+                ``Localizable.strings`` file for the current localization.
+            loc_args (list, optional): List of string values to appear in place
+                of the format specifiers in ``loc_key``.
+            launch_image (str, optional): The filename of an image file in the
+                app bundle; it may include the extension or omit it.
+            extra (dict, optional): Extra data to include with the alert.
+
+        Returns:
+            None
+
+        Raises:
+            APNSInvalidTokenError: Invalid token format.
+            APNSInvalidPayloadSizeError: Notification payload size too large.
+            APNSSendError: APNS error response from server containing a list of
+                all APNS server errors and a mapping of tokens to errors for
+                the ones that failed. See :mod:`pushjack.exceptions` for full
+                listing of possible errors.
+
+        .. versionadded:: 0.0.1
+
+        .. versionchanged:: 0.4.0
+
+            - Added support for bulk sending.
+            - Made sending and error checking non-blocking.
+            - Removed `sock`, `payload`, and `identifer` arguments.
+
+        .. versionchanged:: 0.5.0
+
+            - Resume sending notifications when a sent token has an error
+                response.
+            - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens
+                have an error response.
+        """
+        if not isinstance(ids, (list, tuple)):
+            ids = [ids]
+
+        payload = APNSPayload(alert, **options)
+
+        validate_tokens(ids)
+        validate_payload(payload)
+
+        if low_priority:
+            priority = APNS_LOW_PRIORITY
+        else:
+            priority = APNS_HIGH_PRIORITY
+
+        if expiration is None:
+            expiration = int(time.time()) + self.expiration_offset
+
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        if error_timeout is None:
+            error_timeout = self.error_timeout
+
+        stream = APNSPayloadStream(ids,
+                                   payload,
+                                   expiration,
+                                   priority,
+                                   batch_size)
+
+        self.conn.sendall(stream, error_timeout)
+
+    def get_expired(self):
+        """Return inactive device ids that can't be pushed to anymore.
+
+        Returns:
+            list: List of :class:`APNSExpiredToken`.
+
+        .. versionadded:: 0.0.1
+        """
+        log.debug('Preparing to check for expired APNS tokens.')
+
+        tokens = list(APNSFeedbackStream(self.create_feedback_connection()))
+
+        log.debug('Received {0} expired APNS tokens.'.format(len(tokens)))
+
+        return tokens
+
+
+class APNSSandboxClient(APNSClient):
+    """"""
+    host = APNS_SANDBOX_HOST
+    feedback_host = APNS_FEEDBACK_SANDBOX_HOST
 
 
 class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
@@ -159,6 +329,9 @@ class APNSPayload(object):
             'category': self.category,
             'content-available': 1 if self.content_available else None
         })
+
+        if not payload['aps']:
+            del payload['aps']
 
         return payload
 
@@ -277,10 +450,10 @@ class APNSFeedbackStream(object):
 
 class APNSConnection(object):
     """Manager for APNS socket connection."""
-    def __init__(self, certfile, host=APNS_HOST, port=APNS_PORT):
-        self.certfile = certfile
+    def __init__(self, host, port, certificate):
         self.host = host
         self.port = port
+        self.certificate = certificate
         self.sock = None
 
     def connect(self):
@@ -292,9 +465,9 @@ class APNSConnection(object):
 
         log.debug(('Establishing connection to APNS on {0}:{1} using '
                    'certificate at {2}'
-                   .format(self.host, self.port, self.certfile)))
+                   .format(self.host, self.port, self.certificate)))
 
-        self.sock = create_socket(self.host, self.port, self.certfile)
+        self.sock = create_socket(self.host, self.port, self.certificate)
 
         log.debug(('Established connection to APNS on {0}:{1}.'
                    .format(self.host, self.port)))
@@ -363,7 +536,7 @@ class APNSConnection(object):
 
     def write(self, data, timeout=10):
         """Write data to socket."""
-        if not self.writable(timeout):
+        if not self.writable(timeout):  # pragma: no cover
             self.close()
             raise socket.timeout
 
@@ -442,14 +615,14 @@ class APNSConnection(object):
             raise APNSSendError('APNS send error', stream.tokens, errors)
 
 
-def create_socket(host, port, certfile):
+def create_socket(host, port, certificate):
     """Create a socket connection to the APNS server."""
     try:
-        with open(certfile, 'r') as fileobj:
+        with open(certificate, 'r') as fileobj:
             fileobj.read()
     except Exception as ex:
-        raise APNSAuthError(('The certfile at {0} is not readable: {1}'
-                             .format(certfile, ex)))
+        raise APNSAuthError(('The certificate at {0} is not readable: {1}'
+                             .format(certificate, ex)))
 
     sock = socket.socket()
 
@@ -458,7 +631,7 @@ def create_socket(host, port, certfile):
     # pylint: disable=no-member
     sock = ssl.wrap_socket(sock,
                            ssl_version=ssl.PROTOCOL_TLSv1,
-                           certfile=certfile,
+                           certfile=certificate,
                            do_handshake_on_connect=False)
     sock.connect((host, port))
     sock.setblocking(0)
@@ -560,134 +733,3 @@ def validate_payload(payload):
             ('Notification body cannot exceed '
              '{0} bytes'
              .format(APNS_MAX_NOTIFICATION_SIZE)))
-
-
-def send(ids,
-         alert,
-         conn,
-         expiration=None,
-         low_priority=False,
-         batch_size=None,
-         error_timeout=None,
-         **options):
-    """Send push notification to single device.
-
-    Args:
-        ids (list): APNS device tokens. Each item is expected to be a 64
-            character hex string.
-        alert (str|dict): Alert message or dictionary. Set to ``None`` to
-            send an empty alert notification.
-        conn (APNSConnection, optional): Provide :class:`APNSConnection`
-            instance. Defaults to ``None`` which creates a non-persistent
-            connection.
-        expiration (int, optional): Expiration time of message in seconds
-            offset from now. Defaults to ``None`` which uses
-            ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
-        low_priority (boolean, optional): Whether to send notification with the
-            low priority flag. Defaults to ``False``.
-        batch_size (int, optional): Number of notifications to group together
-            when sending. Defaults to ``None`` which uses
-            ``config['APNS_DEFAULT_BATCH_SIZE']``.
-
-    Keyword Args:
-        badge (int, optional): Badge number count for alert. Defaults to
-            ``None``.
-        sound (str, optional): Name of the sound file to play for alert.
-            Defaults to ``None``.
-        category (str, optional): Name of category. Defaults to ``None``.
-        content_available (bool, optional): If ``True``, indicate that new
-            content is available. Defaults to ``None``.
-        title (str, optional): Alert title.
-        title_loc_key (str, optional): The key to a title string in the
-            ``Localizable.strings`` file for the current localization.
-        title_loc_args (list, optional): List of string values to appear in
-            place of the format specifiers in `title_loc_key`.
-        action_loc_key (str, optional): Display an alert that includes the
-            ``Close`` and ``View`` buttons. The string is used as a key to get
-            a localized string in the current localization to use for the right
-            button’s title instead of ``“View”``.
-        loc_key (str, optional): A key to an alert-message string in a
-            ``Localizable.strings`` file for the current localization.
-        loc_args (list, optional): List of string values to appear in place of
-            the format specifiers in ``loc_key``.
-        launch_image (str, optional): The filename of an image file in the app
-            bundle; it may include the extension or omit it.
-        extra (dict, optional): Extra data to include with the alert.
-
-    Returns:
-        None
-
-    Raises:
-        APNSInvalidTokenError: Invalid token format.
-        APNSInvalidPayloadSizeError: Notification payload size too large.
-        APNSSendError: APNS error response from server containing a list of all
-            APNS server errors and a mapping of tokens to errors for the ones
-            that failed. See :mod:`pushjack.exceptions` for full listing of
-            possible errors.
-
-    .. versionadded:: 0.0.1
-
-    .. versionchanged:: 0.4.0
-
-        - Added support for bulk sending.
-        - Made sending and error checking non-blocking.
-        - Removed `sock`, `payload`, and `identifer` arguments.
-
-    .. versionchanged:: 0.5.0
-
-        - Resume sending notifications when a sent token has an error response.
-        - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens have
-            an error response.
-    """
-    if not isinstance(ids, (list, tuple)):
-        ids = [ids]
-
-    payload = APNSPayload(alert, **options)
-
-    validate_tokens(ids)
-    validate_payload(payload)
-
-    if low_priority:
-        priority = APNS_LOW_PRIORITY
-    else:
-        priority = APNS_HIGH_PRIORITY
-
-    if expiration is None:  # pragma: no cover
-        expiration = (int(time.time()) +
-                      APNS_DEFAULT_EXPIRATION_OFFSET)
-
-    if batch_size is None:  # pragma: no cover
-        batch_size = APNS_DEFAULT_BATCH_SIZE
-
-    if error_timeout is None:  # pragma: no cover
-        error_timeout = APNS_DEFAULT_ERROR_TIMEOUT
-
-    stream = APNSPayloadStream(ids,
-                               payload,
-                               expiration,
-                               priority,
-                               batch_size)
-
-    conn.sendall(stream, error_timeout)
-
-
-def get_expired_tokens(conn):
-    """Return inactive device ids that can't be pushed to anymore.
-
-    Args:
-        conn (APNSConnection, optional): Provide :class:`APNSConnection`
-            instance. Defaults to ``None`` which creates a non-persistent
-            connection.
-
-    Returns:
-        list: List of :class:`APNSExpiredToken`.
-
-    .. versionadded:: 0.0.1
-    """
-    log.debug('Preparing to check for expired APNS tokens.')
-
-    expired = list(APNSFeedbackStream(conn))
-
-    log.debug('Received {0} expired APNS tokens.'.format(len(expired)))
-
-    return expired

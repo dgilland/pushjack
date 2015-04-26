@@ -6,15 +6,7 @@ import mock
 import pytest
 
 from pushjack import (
-    APNSClient,
-    APNSError,
-    APNSAuthError,
-    APNSInvalidTokenError,
-    APNSInvalidPayloadSizeError,
-    APNSConfig,
     apns,
-    create_apns_config,
-    create_apns_sandbox_config,
     exceptions
 )
 from pushjack.utils import json_dumps
@@ -39,14 +31,15 @@ from .fixtures import (
       'category': 'Pushjack',
       'content_available': True,
       'extra': {'custom_data': 12345},
-      'expiration': 3},
+      'expiration': 3,
+      'low_priority': True},
      (json_dumps({'aps': {'alert': 'Hello world',
                           'badge': 1,
                           'sound': 'chime',
                           'category': 'Pushjack',
                           'content-available': 1},
                   'custom_data': 12345}),
-      0, 3, 10)),
+      0, 3, 5)),
     (apns_tokens(1),
      None,
      {'loc_key': 'lk',
@@ -93,6 +86,8 @@ def test_apns_send(apns_client, apns_socket, tokens, alert, extra, expected):
             call = mock.call(token, identifier, expected[0], *expected[2:])
             assert call in pack_frame.mock_calls
 
+        apns_client.close()
+
 
 @parametrize('tokens,identifiers,exception', [
     (apns_tokens(50), [1], exceptions.APNSProcessingError),
@@ -132,7 +127,7 @@ def test_apns_resend(apns_client, apns_socket, tokens, identifiers, exception):
     'abcdef0123456789' * 4,
 ])
 def test_valid_token(apns_client, apns_socket, token):
-    apns_client.send(token, None)
+    apns_client.send(token, '')
     assert apns_socket.sendall.called
 
 
@@ -141,8 +136,8 @@ def test_valid_token(apns_client, apns_socket, token):
     'x' * 64,
 ])
 def test_invalid_token(apns_client, apns_socket, token):
-    with pytest.raises(APNSInvalidTokenError) as exc_info:
-        apns_client.send(token, None)
+    with pytest.raises(exceptions.APNSInvalidTokenError) as exc_info:
+        apns_client.send(token, '')
 
     assert 'Invalid token format' in str(exc_info.value)
 
@@ -182,10 +177,14 @@ def test_apns_socket_write(apns_client, apns_socket):
     assert expected in apns_socket.mock_calls
 
 
-def test_apns_invalid_payload_size(apns_client):
+@parametrize('exception,alert', [
+    (exceptions.APNSInvalidPayloadSizeError, '_' * 2049),
+    (exceptions.APNSMissingPayloadError, None)
+])
+def test_apns_invalid_payload_size(apns_client, exception, alert):
     with mock.patch('pushjack.apns.pack_frame') as pack_frame:
-        with pytest.raises(APNSInvalidPayloadSizeError):
-            apns_client.send(apns_tokens(1), '_' * 2049)
+        with pytest.raises(exception):
+            apns_client.send(apns_tokens(1), alert)
 
         assert not pack_frame.called
 
@@ -216,7 +215,7 @@ def test_apns_error_handling(apns_client, code, exception):
 def test_apns_get_expired_tokens(apns_client, tokens):
     with mock.patch('pushjack.apns.create_socket') as create_socket:
         create_socket.return_value = apns_feedback_socket_factory(tokens)
-        expired_tokens = apns_client.get_expired_tokens()
+        expired_tokens = apns_client.get_expired()
 
         assert len(expired_tokens) == len(tokens)
 
@@ -229,72 +228,35 @@ def test_apns_get_expired_tokens(apns_client, tokens):
 
 
 def test_apns_create_socket(tmpdir):
-    certfile = tmpdir.join('certifiate.pem')
-    certfile.write('content')
+    certificate = tmpdir.join('certifiate.pem')
+    certificate.write('content')
 
     with mock.patch('ssl.wrap_socket') as wrap_socket:
         wrap_socket.do_handshake = lambda: True
 
-        sock = apns.create_socket(TCP_HOST, TCP_PORT, str(certfile))
+        sock = apns.create_socket(TCP_HOST, TCP_PORT, str(certificate))
 
         assert wrap_socket.called
 
         expected = {'ssl_version': 3,
-                    'certfile': str(certfile),
+                    'certfile': str(certificate),
                     'do_handshake_on_connect': False}
 
         assert wrap_socket.mock_calls[0][2] == expected
 
 
-def test_apns_create_socket_missing_certfile():
-    with pytest.raises(APNSAuthError):
+def test_apns_create_socket_missing_certificate():
+    with pytest.raises(exceptions.APNSAuthError):
         apns.create_socket(TCP_HOST, TCP_PORT, 'missing.pem')
 
 
-def test_apns_create_socket_no_certfile():
-    with pytest.raises(APNSAuthError):
+def test_apns_create_socket_no_certificate():
+    with pytest.raises(exceptions.APNSAuthError):
         apns.create_socket(TCP_HOST, TCP_PORT, None)
 
 
-def test_apns_create_socket_empty_certfile(tmpdir):
-    certfile = tmpdir.join('certificate.pem')
+def test_apns_create_socket_empty_certificate(tmpdir):
+    certificate = tmpdir.join('certificate.pem')
 
-    with pytest.raises(APNSAuthError):
-        apns.create_socket(TCP_HOST, TCP_PORT, str(certfile))
-
-
-def test_apns_config():
-    config = create_apns_config()
-    assert isinstance(config, dict)
-    assert isinstance(config, APNSConfig)
-    assert config['APNS_HOST'] == 'gateway.push.apple.com'
-    assert config['APNS_PORT'] == 2195
-    assert config['APNS_FEEDBACK_HOST'] == 'feedback.push.apple.com'
-    assert config['APNS_FEEDBACK_PORT'] == 2196
-    assert config['APNS_CERTIFICATE'] == None
-    assert config['APNS_DEFAULT_ERROR_TIMEOUT'] == 10
-    assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
-    assert config['APNS_DEFAULT_BATCH_SIZE'] == 100
-
-
-def test_apns_sandbox_config():
-    config = create_apns_sandbox_config()
-    assert isinstance(config, dict)
-    assert isinstance(config, APNSConfig)
-    assert config['APNS_HOST'] == 'gateway.sandbox.push.apple.com'
-    assert config['APNS_PORT'] == 2195
-    assert config['APNS_FEEDBACK_HOST'] == 'feedback.sandbox.push.apple.com'
-    assert config['APNS_FEEDBACK_PORT'] == 2196
-    assert config['APNS_CERTIFICATE'] == None
-    assert config['APNS_DEFAULT_ERROR_TIMEOUT'] == 10
-    assert config['APNS_DEFAULT_EXPIRATION_OFFSET'] == 60 * 60 * 24 * 30
-    assert config['APNS_DEFAULT_BATCH_SIZE'] == 100
-
-
-def test_apns_client_config_class():
-    class TestAPNSConfig(APNSConfig):
-        APNS_CERTIFICATE = 'certificate.pem'
-
-    client = APNSClient(TestAPNSConfig)
-
-    assert client.config['APNS_CERTIFICATE'] == TestAPNSConfig.APNS_CERTIFICATE
+    with pytest.raises(exceptions.APNSAuthError):
+        apns.create_socket(TCP_HOST, TCP_PORT, str(certificate))

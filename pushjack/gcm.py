@@ -23,9 +23,8 @@ from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 __all__ = (
     'GCMCanonicalID',
-    'GCMConnection',
+    'GCMClient',
     'GCMResponse',
-    'send',
 )
 
 
@@ -36,6 +35,82 @@ GCM_URL = 'https://android.googleapis.com/gcm/send'
 
 # GCM only allows up to 1000 reg ids per bulk message.
 GCM_MAX_RECIPIENTS = 1000
+
+
+class GCMClient(object):
+    """GCM client class.
+
+    Raises:
+        GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
+
+    See Also:
+        :mod:`pushjack.gcm`
+    """
+    url = GCM_URL
+
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self._conn = None
+
+    @property
+    def conn(self):
+        """Lazily return connection."""
+        if not self._conn:
+            self._conn = self.create_connection()
+        return self._conn
+
+    def create_connection(self):
+        """Return GCM connection."""
+        return GCMConnection(self.api_key, self.url)
+
+    def send(self, ids, alert, **options):
+        """Send push notification to single or multiple recipients.
+
+        Args:
+            ids (list): GCM device registration IDs.
+            alert (str|dict): Alert message or dictionary.
+
+        Keyword Args:
+            collapse_key (str, optional): Identifier for a group of messages
+                that can be collapsed so that only the last message gets sent
+                when delivery can be resumed. Defaults to ``None``.
+            delay_while_idle (bool, optional): If ``True`` indicates that the
+                message should not be sent until the device becomes active.
+            time_to_live (int, optional): How long (in seconds) the message
+                should be kept in GCM storage if the device is offline. The
+                maximum time to live supported is 4 weeks. Defaults to ``None``
+                which uses the GCM default of 4 weeks.
+            restricted_package_name (str, optional): Package name of the
+                application where the registration IDs must match in order to
+                receive the message. Defaults to ``None``.
+            dry_run (bool, optional): If ``True`` no message will be sent but
+                request will be tested.
+
+        Returns:
+            :class:`GCMResponse`
+
+        Raises:
+            :class:`pushjack.exceptions.GCMServerError`: If GCM server response
+                indicates failure. See :mod:`pushjack.exceptions` for full
+                listing.
+
+        .. versionadded:: 0.0.1
+
+        .. versionchanged:: 0.4.0
+
+            - Added support for bulk sending.
+            - Removed `request` argument.
+        """
+        if not self.api_key:
+            raise GCMAuthError('Missing GCM API key.')
+
+        if not isinstance(ids, (list, tuple)):
+            ids = [ids]
+
+        payload = GCMPayload(ids, alert, **options)
+        response = self.conn.send(GCMPayloadStream(payload))
+
+        return response
 
 
 class GCMCanonicalID(namedtuple('GCMCanonicalID', ['old_id', 'new_id'])):
@@ -80,7 +155,7 @@ class GCMPayload(object):
             'dry_run': True if self.dry_run else None
         })
 
-    def to_json(self):
+    def to_json(self):  # pragma: no cover
         """Return payload as JSON string."""
         return json_dumps(self.to_dict())
 
@@ -237,53 +312,3 @@ class GCMResponse(object):
         """
         self.canonical_ids.append(GCMCanonicalID(registration_id,
                                                  canonical_id))
-
-
-def send(ids, alert, conn, **options):
-    """Sends a GCM notification to one or more IDs.
-
-    Args:
-        id_ (str): GCM device registration ID.
-        alert (str|dict): Alert message or dictionary.
-        conn (GCMConnection): Provide :class:`GCMConnection` instance.
-        request (callable, optional): Callable object that makes POST request
-            to GCM service. Defaults to ``None`` which creates its own request
-            callable.
-
-    Keyword Args:
-        collapse_key (str, optional): Identifier for a group of messages that
-            can be collapsed so that only the last message gets sent when
-            delivery can be resumed. Defaults to ``None``.
-        delay_while_idle (bool, optional): If ``True`` indicates that the
-            message should not be sent until the device becomes active.
-        time_to_live (int, optional): How long (in seconds) the message should
-            be kept in GCM storage if the device is offline. The maximum time
-            to live supported is 4 weeks. Defaults to ``None`` which uses the
-            GCM default of 4 weeks.
-        restricted_package_name (str, optional): Package name of the
-            application where the registration IDs must match in order to
-            receive the message. Defaults to ``None``.
-        dry_run (bool, optional): If ``True`` no message will be sent but
-            request will be tested.
-
-    Returns:
-        Response: ``requests.Response`` object from GCM server.
-
-    Raises:
-        GCMServerError: If GCM server response indicates failure. See
-            :mod:`pushjack.exceptions` for full listing.
-
-    .. versionadded:: 0.0.1
-
-    .. versionchanged:: 0.4.0
-
-        - Added support for bulk sending.
-        - Removed `request` argument.
-    """
-    if not isinstance(ids, (list, tuple)):
-        ids = [ids]
-
-    payload = GCMPayload(ids, alert, **options)
-    response = conn.send(GCMPayloadStream(payload))
-
-    return response

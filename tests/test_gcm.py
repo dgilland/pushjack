@@ -7,8 +7,6 @@ import pytest
 from pushjack import (
     GCMClient,
     GCMError,
-    GCMConfig,
-    create_gcm_config,
     exceptions
 )
 from pushjack.gcm import GCMConnection
@@ -146,22 +144,9 @@ def test_gcm_response(gcm_client, tokens, status_code, results, expected):
 
 
 def test_gcm_invalid_api_key(gcm_client):
-    gcm_client.config['GCM_API_KEY'] = None
+    gcm_client.api_key = None
     with pytest.raises(GCMError) as exc_info:
         gcm_client.send('abc', {})
-
-
-def test_gcm_create_connection():
-    config = {
-        'GCM_API_KEY': '1234',
-        'GCM_URL': 'http://example.com'
-    }
-
-    conn = GCMConnection(config['GCM_API_KEY'], config['GCM_URL'])
-
-    assert conn.url == config['GCM_URL']
-    assert conn.session.auth == ('key', config['GCM_API_KEY'])
-    assert conn.session.headers['Content-Type'] == 'application/json'
 
 
 @parametrize('tokens,data,extra,expected', [
@@ -180,20 +165,3 @@ def test_gcm_connection_call(gcm_client, tokens, data, extra, expected):
     with mock.patch('requests.Session') as Session:
         gcm_client.send(tokens, data, **extra)
         assert expected in Session.mock_calls
-
-
-def test_gcm_config():
-    config = create_gcm_config()
-    assert isinstance(config, dict)
-    assert isinstance(config, GCMConfig)
-    assert config['GCM_API_KEY'] is None
-    assert config['GCM_URL'] == 'https://android.googleapis.com/gcm/send'
-
-
-def test_gcm_client_config_class():
-    class TestGCMConfig(GCMConfig):
-        GCM_API_KEY = 'api_key'
-
-    client = GCMClient(TestGCMConfig)
-
-    assert client.config['GCM_API_KEY'] == TestGCMConfig.GCM_API_KEY

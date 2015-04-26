@@ -23,8 +23,6 @@ import pushjack
 from pushjack import (
     APNSClient,
     GCMClient,
-    create_apns_config,
-    create_gcm_config
 )
 from pushjack.apns import APNS_ERROR_RESPONSE_COMMAND
 from pushjack.utils import json_dumps, json_loads
@@ -68,7 +66,7 @@ class TCPClientServer(object):
 @pytest.fixture
 def apns_client():
     """Return APNS client."""
-    return APNSClient(create_apns_config({'APNS_DEFAULT_ERROR_TIMEOUT': 0}))
+    return APNSClient(certificate=None, error_timeout=0)
 
 
 def apns_socket_factory(connect=None):
@@ -175,4 +173,4 @@ def gcm_server_response(url, request):
 @pytest.fixture
 def gcm_client():
     """Return GCM client."""
-    return GCMClient(create_gcm_config({'GCM_API_KEY': '1234'}))
+    return GCMClient(api_key='1234')
