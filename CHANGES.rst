@@ -4,6 +4,28 @@ Changelog
 =========
 
 
+vx.x.x (xxxx-xx-xx)
+-------------------
+
+- Add ``APNSSandboxClient`` for sending notifications to APNS sandbox server.
+- Add internal logging.
+- Make APNS sending stop during iteration if a fatal error is received from APNS server (e.g. invalid topic, invalid payload size, etc).
+- Make APNS and GCM clients maintain an active connection to server.
+- Remove APNS/GCM module send functions and only support client interfaces. (**breaking change**)
+- Remove ``config`` argument from ``APNSClient`` and use individual method parameters as mapped below instead: (**breaking change**)
+
+    - ``APNS_ERROR_TIMEOUT`` => ``default_error_timeout``
+    - ``APNS_DEFAULT_EXPIRATION_OFFSET`` => ``default_expiration_offset``
+    - ``APNS_DEFAULT_BATCH_SIZE`` => ``default_batch_size``
+
+- Remove ``config`` argument from ``GCMClient`` and use individual method parameters as mapped below instead: (**breaking change**)
+
+    - ``GCM_API_KEY`` => ``api_key``
+
+- Remove ``pushjack.clients`` module. (**breaking change**)
+- Remove ``pushjack.config`` module. (**breaking change**)
+
+
 v0.5.0 (2015-04-22)
 -------------------
 

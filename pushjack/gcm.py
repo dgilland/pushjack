@@ -22,9 +22,9 @@ from .exceptions import GCMError, GCMAuthError, gcm_server_errors
 
 
 __all__ = (
-    'GCMCanonicalID',
     'GCMClient',
     'GCMResponse',
+    'GCMCanonicalID',
 )
 
 
@@ -54,13 +54,13 @@ class GCMClient(object):
 
     @property
     def conn(self):
-        """Lazily return connection."""
+        """Reference to lazy GCM connection."""
         if not self._conn:
             self._conn = self.create_connection()
         return self._conn
 
     def create_connection(self):
-        """Return GCM connection."""
+        """Create and return new GCM connection."""
         return GCMConnection(self.api_key, self.url)
 
     def send(self, ids, alert, **options):

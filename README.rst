@@ -27,24 +27,23 @@ Install using pip:
     pip install pushjack
 
 
-Whether using ``APNS`` or ``GCM``, pushjack provides a common API interface for each.
+Whether using ``APNS`` or ``GCM``, pushjack provides clients for each.
 
 
 APNS
 ----
 
-Using the ``APNSClient`` class:
+Send notifications using the ``APNSClient`` class:
 
 
 .. code-block:: python
 
-    from pushjack import APNSClient, create_apns_config
+    from pushjack import APNSClient
 
-    config = create_apns_config({
-        'APNS_CERTIFICATE': '<path/to/certificate.pem>'
-    })
-
-    client = APNSClient(config)
+    client = APNSClient(certificate='<path/to/certificate.pem>',
+                        default_error_timeout=10,
+                        default_expiration_offset=2592000,
+                        default_batch_size=100)
 
     token = '<device token>'
     alert = 'Hello world.'
@@ -68,38 +67,36 @@ Using the ``APNSClient`` class:
     # Send to multiple devices by passing a list of tokens.
     client.send([token], alert, **options)
 
+    # Override defaults for error_timeout, expiration_offset, and batch_size.
+    client.send(token,
+                alert,
+                expiration=int(time.time() + 604800),
+                error_timeout=5,
+                batch_size=200)
+
     # Get expired tokens.
-    expired = client.get_expired_tokens()
+    expired_tokens = client.get_expired_tokens()
 
 
-Using the APNS module directly:
+For the APNS sandbox, use ``APNSSandboxClient`` instead:
 
 
 .. code-block:: python
 
-    from pushjack import apns
-
-    # Call signature is the same as APNSClient
-    # except the connection must be passed in.
-    conn = apns.APNSConnection(config['APNS_HOST'], config['APNS_PORT'])
-    apns.send(token, alert, conn, **options)
+    from pushjack import APNSSandboxClient
 
 
 GCM
 ---
 
-Using the ``GCMClient`` class:
+Send notifications using the ``GCMClient`` class:
 
 
 .. code-block:: python
 
-    from pushjack import GCMClient, create_gcm_config
+    from pushjack import GCMClient
 
-    config = create_gcm_config({
-        'GCM_API_KEY': '<api key>'
-    })
-
-    client = GCMClient(config)
+    client = GCMClient(api_key='<api-key>')
 
     registration_id = '<registration id>'
     alert = 'Hello world.'
@@ -110,72 +107,10 @@ Using the ``GCMClient`` class:
                 data,
                 collapse_key='collapse_key',
                 delay_while_idle=True,
-                time_to_live=100)
+                time_to_live=604800)
 
-    # Send to multiple devices by passing a list of ids
+    # Send to multiple devices by passing a list of ids.
     client.send([registration_id], alert, **options)
-
-
-Using the GCM module directly:
-
-
-.. code-block:: python
-
-    from pushjack import gcm
-
-    # Call signature is the same as GCMClient
-    # except the connection must be passed in.
-    conn = gcm.GCMConnection(config['API_KEY'], config['API_URL'])
-    gcm.send(token, alert, conn, **options)
-
-
-Config
-------
-
-The config object for configuring a client is expected to be a ``dict`` or subclass of ``dict``:
-
-
-.. code-block:: python
-
-    gcm_config = {
-        'GCM_API_KEY': '<api key>',
-        'GCM_URL': 'https://android.googleapis.com/gcm/send'
-    }
-
-    apns_config = {
-        'APNS_CERTIFICATE': '<path/to/certificate.pem>',
-        'APNS_HOST': 'gateway.push.apple.com',
-        'APNS_PORT': 2195,
-        'APNS_FEEDBACK_HOST': 'feedback.push.apple.com',
-        'APNS_FEEDBACK_PORT': 2196,
-        'APNS_DEFAULT_ERROR_TIMEOUT': 10,
-        'APNS_DEFAULT_EXPIRATION_OFFSET': 60 * 60 * 24 * 30,
-        'APNS_DEFAULT_BATCH_SIZE': 100
-    }
-
-
-For a class based approached, configuration classes are provided for subclassing which can be passed to each client class. By default, both ``GCMConfig``, ``APNSConfig``, and ``APNSSandboxConfig`` will set default values for the settings that shouldn't change. You will need to set ``GCM_API_KEY`` or ``APNS_CERTIFICATE`` appropriately though:
-
-
-.. code-block:: python
-
-    from pushjack import GCMClient, GCMConfig, APNSConfig, APNSSandboxConfig
-
-    class MyGCMConfig(GCMConfig):
-        GCM_API_KEY = '<api key>'
-
-    class MyAPNSConfig(APNSConfig):
-        APNS_CERTIFICATE = '<path/to/certificate.pem>'
-
-    class MyAPNSSandboxConfig(APNSConfig):
-        APNS_CERTIFICATE = '<path/to/certificate.pem>'
-
-
-    client = GCMClient(MyGCMConfig)
-
-
-**NOTE:** You can only pass in a class to the client initializer if it is a subclass of one of the provided ``*Config`` classes.
-
 
 
 For more details, please see the full documentation at http://pushjack.readthedocs.org.

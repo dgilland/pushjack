@@ -4,20 +4,6 @@ API Reference
 =============
 
 
-Clients
--------
-
-.. automodule:: pushjack.clients
-
-.. autoclass:: pushjack.clients.APNSClient
-    :members: send, get_expired_tokens
-    :exclude-members: adapter
-
-.. autoclass:: pushjack.clients.GCMClient
-    :members: send
-    :exclude-members: adapter
-
-
 APNS
 ----
 
@@ -164,13 +150,6 @@ Exception                                    Code                       Descript
     :members:
 
 .. autoclass:: pushjack.exceptions.GCMDeviceMessageRateExceededError
-    :members:
-
-
-Configuration
--------------
-
-.. automodule:: pushjack.config
     :members:
 
 

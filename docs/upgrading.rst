@@ -4,6 +4,97 @@ Upgrading
 =========
 
 
+From v0.5.0 to v1.0.0
+---------------------
+
+There were several, major breaking changes in ``v1.0.0``:
+
+- Remove APNS/GCM module send functions and only support client interfaces. (**breaking change**)
+- Remove ``config`` argument from ``APNSClient`` and use individual function parameters as mapped below instead: (**breaking change**)
+
+    - ``APNS_ERROR_TIMEOUT`` => ``default_error_timeout``
+    - ``APNS_DEFAULT_EXPIRATION_OFFSET`` => ``default_expiration_offset``
+    - ``APNS_DEFAULT_BATCH_SIZE`` => ``default_batch_size``
+
+- Remove ``config`` argument from ``GCMClient`` and use individual functionm parameters as mapped below instead: (**breaking change**)
+
+    - ``GCM_API_KEY`` => ``api_key``
+
+- Remove ``pushjack.clients`` module. (**breaking change**)
+- Remove ``pushjack.config`` module. (**breaking change**)
+
+The motiviation behind these drastic changes were to eliminate multiple methods for sending tokens (removing module functions in favor of using client classes) and to simplify the overall implementation (eliminating a separate configuration module/implementation and instead passing config parameters directly into client class). This has lead to a smaller, easier to maintain codebase with fewer implementation details.
+
+The module send functions are no longer implemented:
+
+.. code-block:: python
+
+    # This no longer works on v1.0.0.
+    from pushjack import apns, gcm
+
+    apns.send(...)
+    gcm.send(...)
+
+
+Instead, the respective client classes must be used instead:
+
+.. code-block:: python
+
+    # This works on v1.0.0.
+    from pushjack import APNSClient, APNSSandboxClient, GCMClient
+
+    apns = APNSClient(...)
+    apns.send(...)
+
+    apns_sandbox = APNSSandboxClient(...)
+    apns_sandbox.send(...)
+
+    gcm = GCMClient(...)
+    gcm.send(...)
+
+
+The configuration module has been eliminated:
+
+.. code-block:: python
+
+    # This fails on v1.0.0.
+    from pushjack import APNSClient, GCMClient, create_apns_config, create_gcm_config
+
+    apns = APNSClient(create_apns_config({
+        'APNS_CERTIFICATE': '<path/to/certificate.pem>',
+        'APNS_ERROR_TIMEOUT': 10,
+        'APNS_DEFAULT_EXPIRATION_OFFSET: 60 * 60 * 24 * 30,
+        'APNS_DEFAULT_BATCH_SIZE': 100
+    }))
+    apns.send(tokens, alert, **options)
+
+    gcm = GCMClient(create_gcm_config({
+        'GCM_API_KEY': '<api-key>'
+    }))
+    gcm.send(tokens, alert, **options)
+
+
+Instead, configuration values are passed directly during class instance creation:
+
+.. code-block:: python
+
+    # This works on v1.0.0.
+    from pushjack import APNSClient, APNSSandboxClient, GCMClient
+
+    apns = APNSClient('<path/to/certificate.pem>',
+                      default_error_timeout=10,
+                      default_expiration_offset=60 * 60 * 24 * 30,
+                      default_batch_size=100)
+
+    # or if wanting to use the sandbox:
+    # sandbox = APNSSandboxClient(...)
+
+    apns.send(tokens, alert, **options)
+
+    gcm = GCMClient('<api-key>')
+    gcm.send(tokens, alert, **options)
+
+
 From v0.4.0 to v0.5.0
 ---------------------
 

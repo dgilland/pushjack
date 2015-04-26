@@ -41,8 +41,8 @@ from .exceptions import (
 
 __all__ = (
     'APNSClient',
-    'APNSExpiredToken',
     'APNSSandboxClient',
+    'APNSExpiredToken',
 )
 
 
@@ -104,17 +104,17 @@ class APNSClient(object):
 
     @property
     def conn(self):
-        """Lazily return connection."""
+        """Reference to lazy APNS connection."""
         if not self._conn:
             self._conn = self.create_connection()
         return self._conn
 
     def create_connection(self):
-        """Return APNS connection to push server."""
+        """Create and return new APNS connection to push server."""
         return APNSConnection(self.host, self.port, self.certificate)
 
     def create_feedback_connection(self):
-        """Return APNS connection to feedback server."""
+        """Create and return new APNS connection to feedback server."""
         return APNSConnection(self.feedback_host,
                               self.feedback_port,
                               self.certificate)
@@ -179,9 +179,12 @@ class APNSClient(object):
             None
 
         Raises:
-            APNSInvalidTokenError: Invalid token format.
-            APNSInvalidPayloadSizeError: Notification payload size too large.
-            APNSSendError: APNS error response from server containing a list of
+            :class:`pushjack.exceptions.APNSInvalidTokenError`: Invalid token
+                format.
+            :class:`pushjack.exceptions.APNSInvalidPayloadSizeError`:
+                Notification payload size too large.
+            :class:`pushjack.exceptions.APNSSendError`: APNS error response
+                from server containing a list of
                 all APNS server errors and a mapping of tokens to errors for
                 the ones that failed. See :mod:`pushjack.exceptions` for full
                 listing of possible errors.
@@ -197,9 +200,9 @@ class APNSClient(object):
         .. versionchanged:: 0.5.0
 
             - Resume sending notifications when a sent token has an error
-                response.
+              response.
             - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens
-                have an error response.
+              have an error response.
         """
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
@@ -231,11 +234,12 @@ class APNSClient(object):
 
         self.conn.sendall(stream, error_timeout)
 
-        """Return inactive device ids that can't be pushed to anymore.
     def get_expired_tokens(self):
+        """Return inactive device tokens that are no longer registered to
+        receive notifications.
 
         Returns:
-            list: List of :class:`APNSExpiredToken`.
+            list: List of :class:`APNSExpiredToken` instances.
 
         .. versionadded:: 0.0.1
         """
@@ -249,7 +253,7 @@ class APNSClient(object):
 
 
 class APNSSandboxClient(APNSClient):
-    """"""
+    """APNS client class for sandbox server."""
     host = APNS_SANDBOX_HOST
     feedback_host = APNS_FEEDBACK_SANDBOX_HOST
 
@@ -330,6 +334,7 @@ class APNSPayload(object):
         })
 
         if not payload['aps']:
+            # Don't include 'aps' field if empty.
             del payload['aps']
 
         return payload
