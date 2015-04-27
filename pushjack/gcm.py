@@ -63,12 +63,12 @@ class GCMClient(object):
         """Create and return new GCM connection."""
         return GCMConnection(self.api_key, self.url)
 
-    def send(self, ids, alert, **options):
+    def send(self, ids, message, **options):
         """Send push notification to single or multiple recipients.
 
         Args:
             ids (list): GCM device registration IDs.
-            alert (str|dict): Alert message or dictionary.
+            message (str|dict): Message string or dictionary.
 
         Keyword Args:
             collapse_key (str, optional): Identifier for a group of messages
@@ -107,8 +107,8 @@ class GCMClient(object):
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
 
-        payload = GCMPayload(ids, alert, **options)
-        response = self.conn.send(GCMPayloadStream(payload))
+        message = GCMMessage(ids, message, **options)
+        response = self.conn.send(GCMMessageStream(message))
 
         return response
 
@@ -125,18 +125,18 @@ class GCMConnection(object):
             'Content-Type': 'application/json',
         })
 
-    def post(self, payload):
-        """Send single POST request with payload to GCM server."""
+    def post(self, message):
+        """Send single POST request with message to GCM server."""
         log.debug(('Sending GCM notification batch containing {0} bytes.'
-                   .format(len(payload))))
-        return self.session.post(self.url, payload)
+                   .format(len(message))))
+        return self.session.post(self.url, message)
 
     def send(self, stream):
-        """Send payloads to GCM server and return list of responses."""
+        """Send messages to GCM server and return list of responses."""
         log.debug(('Preparing to send {0} notifications to GCM.'
                    .format(len(stream))))
 
-        response = GCMResponse([self.post(payload) for payload in stream])
+        response = GCMResponse([self.post(message) for message in stream])
 
         log.debug('Sent {0} notifications to GCM.'.format(len(stream)))
 
@@ -147,18 +147,18 @@ class GCMConnection(object):
         return response
 
 
-class GCMPayload(object):
-    """GCM payload object that serializes to JSON."""
+class GCMMessage(object):
+    """GCM message object that serializes to JSON."""
     def __init__(self,
                  registration_ids,
-                 alert,
+                 message,
                  collapse_key=None,
                  delay_while_idle=None,
                  time_to_live=None,
                  restricted_package_name=None,
                  dry_run=None):
         self.registration_ids = registration_ids
-        self.alert = alert
+        self.message = message
         self.collapse_key = collapse_key
         self.delay_while_idle = delay_while_idle
         self.time_to_live = time_to_live
@@ -166,11 +166,11 @@ class GCMPayload(object):
         self.dry_run = dry_run
 
     def to_dict(self):
-        """Return payload as dictionary."""
+        """Return message as dictionary."""
         return compact_dict({
             'registration_ids': self.registration_ids,
-            'data': (self.alert if isinstance(self.alert, dict)
-                     else {'message': self.alert}),
+            'data': (self.message if isinstance(self.message, dict)
+                     else {'message': self.message}),
             'collapse_key': self.collapse_key,
             'delay_while_idle': self.delay_while_idle,
             'time_to_live': self.time_to_live,
@@ -179,42 +179,42 @@ class GCMPayload(object):
         })
 
     def to_json(self):  # pragma: no cover
-        """Return payload as JSON string."""
+        """Return message as JSON string."""
         return json_dumps(self.to_dict())
 
 
-class GCMPayloadStream(object):
-    """Iterable object that yields GCM payloads in chunks."""
-    def __init__(self, payload):
-        self.payload = payload
+class GCMMessageStream(object):
+    """Iterable object that yields GCM messages in chunks."""
+    def __init__(self, message):
+        self.message = message
 
     def __len__(self):
         """Return count of number of notifications."""
-        return len(self.payload.registration_ids)
+        return len(self.message.registration_ids)
 
     def __iter__(self):
-        """Iterate through and yield chunked payloads."""
-        payload = self.payload.to_dict()
+        """Iterate through and yield chunked messages."""
+        message = self.message.to_dict()
 
-        for ids in chunk(self.payload.registration_ids, GCM_MAX_RECIPIENTS):
+        for ids in chunk(self.message.registration_ids, GCM_MAX_RECIPIENTS):
             for id in ids:
                 log.debug(('Preparing notification for GCM id {0}'
                            .format(id)))
 
-            payload['registration_ids'] = ids
-            yield json_dumps(payload)
+            message['registration_ids'] = ids
+            yield json_dumps(message)
 
 
 class GCMResponse(object):
     """GCM server response with results parsed into :attr:`responses`,
-    :attr:`payloads`, :attr:`registration_ids`, :attr:`data`,
+    :attr:`messages`, :attr:`registration_ids`, :attr:`data`,
     :attr:`successes`, :attr:`failures`, :attr:`errors`, and
     :attr:`canonical_ids`.
 
     Attributes:
-        responses (list): List of ``request.Response`` objects from each GCM
+        responses (list): List of ``requests.Response`` objects from each GCM
             request.
-        payloads (list): List of payload data sent in each GCM request.
+        messages (list): List of message data sent in each GCM request.
         registration_ids (list): Combined list of all recipient registration
             IDs.
         data (list): List of each GCM server response data.
@@ -232,7 +232,7 @@ class GCMResponse(object):
             responses = [responses]
 
         self.responses = responses
-        self.payloads = []
+        self.messages = []
         self.registration_ids = []
         self.data = []
         self.successes = []
@@ -246,12 +246,12 @@ class GCMResponse(object):
         """Parse each server response."""
         for response in self.responses:
             try:
-                payload = json_loads(response.request.body)
+                message = json_loads(response.request.body)
             except (TypeError, ValueError):
-                payload = None
+                message = None
 
-            self.payloads.append(payload)
-            registration_ids = (payload or {}).get('registration_ids', [])
+            self.messages.append(message)
+            registration_ids = (message or {}).get('registration_ids', [])
 
             if not registration_ids:
                 continue

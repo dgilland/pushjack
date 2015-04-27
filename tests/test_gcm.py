@@ -20,7 +20,7 @@ from .fixtures import (
 )
 
 
-@parametrize('tokens,data,extra,payload', [
+@parametrize('tokens,data,extra,message', [
     ('abc', 'Hello world', {},
      {'registration_ids': ['abc'],
       'data': {'message': 'Hello world'}}),
@@ -76,7 +76,7 @@ from .fixtures import (
                           'key1': 'value1',
                           'key2': {'key2_': 'value2_0'}}}}),
 ])
-def test_gcm_send(gcm_client, tokens, data, extra, payload):
+def test_gcm_send(gcm_client, tokens, data, extra, message):
     with httmock.HTTMock(gcm_server_response):
         res = gcm_client.send(tokens, data, **extra)
 
@@ -92,7 +92,7 @@ def test_gcm_send(gcm_client, tokens, data, extra, payload):
                              'results': [{'message_id': token}
                                          for token in tokens]}]
         assert res.successes == tokens
-        assert res.payloads == [payload]
+        assert res.messages == [message]
         assert res.errors == []
         assert res.canonical_ids == []
 

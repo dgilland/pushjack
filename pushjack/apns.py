@@ -125,7 +125,7 @@ class APNSClient(object):
 
     def send(self,
              ids,
-             alert,
+             message,
              expiration=None,
              low_priority=None,
              batch_size=None,
@@ -136,8 +136,8 @@ class APNSClient(object):
         Args:
             ids (list): APNS device tokens. Each item is expected to be a 64
                 character hex string.
-            alert (str|dict): Alert message or dictionary. Set to ``None`` to
-                send an empty alert notification.
+            message (str|dict): Message string or APS dictionary. Set to
+                ``None`` to send an empty alert notification.
             conn (APNSConnection, optional): Provide :class:`APNSConnection`
                 instance. Defaults to ``None`` which creates a non-persistent
                 connection.
@@ -207,10 +207,10 @@ class APNSClient(object):
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
 
-        payload = APNSPayload(alert, **options)
+        message = APNSMessage(message, **options)
 
         validate_tokens(ids)
-        validate_payload(payload)
+        validate_message(message)
 
         if low_priority:
             priority = APNS_LOW_PRIORITY
@@ -226,8 +226,8 @@ class APNSClient(object):
         if error_timeout is None:
             error_timeout = self.default_error_timeout
 
-        stream = APNSPayloadStream(ids,
-                                   payload,
+        stream = APNSMessageStream(ids,
+                                   message,
                                    expiration,
                                    priority,
                                    batch_size)
@@ -426,10 +426,10 @@ class APNSConnection(object):
         return APNSResponse(stream.tokens, errors)
 
 
-class APNSPayload(object):
-    """APNS payload object that serializes to JSON."""
+class APNSMessage(object):
+    """APNS message object that serializes to JSON."""
     def __init__(self,
-                 alert=None,
+                 message=None,
                  badge=None,
                  sound=None,
                  category=None,
@@ -442,7 +442,7 @@ class APNSPayload(object):
                  loc_args=None,
                  launch_image=None,
                  extra=None):
-        self.alert = alert
+        self.message = message
         self.badge = badge
         self.sound = sound
         self.category = category
@@ -457,8 +457,8 @@ class APNSPayload(object):
         self.extra = extra
 
     def to_dict(self):
-        """Return payload as dictionary."""
-        payload = {}
+        """Return message as dictionary."""
+        message = {}
 
         if any([self.title,
                 self.title_loc_key,
@@ -468,7 +468,7 @@ class APNSPayload(object):
                 self.loc_args,
                 self.launch_image]):
             alert = {
-                'body': self.alert,
+                'body': self.message,
                 'title': self.title,
                 'title-loc-key': self.title_loc_key,
                 'title-loc-args': self.title_loc_args,
@@ -480,10 +480,10 @@ class APNSPayload(object):
 
             alert = compact_dict(alert)
         else:
-            alert = self.alert
+            alert = self.message
 
-        payload.update(self.extra or {})
-        payload['aps'] = compact_dict({
+        message.update(self.extra or {})
+        message['aps'] = compact_dict({
             'alert': alert,
             'badge': self.badge,
             'sound': self.sound,
@@ -491,37 +491,37 @@ class APNSPayload(object):
             'content-available': 1 if self.content_available else None
         })
 
-        if not payload['aps']:
+        if not message['aps']:
             # Don't include 'aps' field if empty.
-            del payload['aps']
+            del message['aps']
 
-        return payload
+        return message
 
     def to_json(self):
-        """Return payload as JSON string."""
+        """Return message as JSON string."""
         return json_dumps(self.to_dict())
 
     def __len__(self):
-        """Return length of serialized payload."""
+        """Return length of serialized message."""
         if not self.to_dict():
-            # Consider payload length 0 if there is no payload data.
+            # Consider message length 0 if there is no message data.
             return 0
         else:
             return len(self.to_json())
 
 
-class APNSPayloadStream(object):
+class APNSMessageStream(object):
     """Iterable object that yields a binary APNS socket frame for each device
     token.
     """
     def __init__(self,
                  tokens,
-                 payload,
+                 message,
                  expiration,
                  priority,
                  batch_size=1):
         self.tokens = tokens
-        self.payload = payload
+        self.message = message
         self.expiration = expiration
         self.priority = priority
         self.batch_size = batch_size
@@ -755,12 +755,12 @@ def validate_tokens(tokens):
                                      '{0}'.format(', '.join(invalid))))
 
 
-def validate_payload(payload):
-    """Check whether `payload` is valid."""
-    if len(payload) == 0:
+def validate_message(message):
+    """Check whether `message` is valid."""
+    if len(message) == 0:
         raise APNSMissingPayloadError('Notification body size cannot be 0')
 
-    if len(payload) > APNS_MAX_NOTIFICATION_SIZE:
+    if len(message) > APNS_MAX_NOTIFICATION_SIZE:
         raise APNSInvalidPayloadSizeError(
             ('Notification body cannot exceed '
              '{0} bytes'
