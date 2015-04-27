@@ -9,6 +9,7 @@ From v0.5.0 to v1.0.0
 
 There were several, major breaking changes in ``v1.0.0``:
 
+- Make APNS always return ``APNSResponse`` object instead of only raising ``APNSSendError`` when errors encountered. (**breaking change**)
 - Remove APNS/GCM module send functions and only support client interfaces. (**breaking change**)
 - Remove ``config`` argument from ``APNSClient`` and use individual function parameters as mapped below instead: (**breaking change**)
 
@@ -22,6 +23,7 @@ There were several, major breaking changes in ``v1.0.0``:
 
 - Remove ``pushjack.clients`` module. (**breaking change**)
 - Remove ``pushjack.config`` module. (**breaking change**)
+- Rename ``GCMResponse.payloads`` to ``GCMResponse.messages``. (**breaking change**)
 
 The motiviation behind these drastic changes were to eliminate multiple methods for sending tokens (removing module functions in favor of using client classes) and to simplify the overall implementation (eliminating a separate configuration module/implementation and instead passing config parameters directly into client class). This has lead to a smaller, easier to maintain codebase with fewer implementation details.
 
@@ -93,6 +95,29 @@ Instead, configuration values are passed directly during class instance creation
 
     gcm = GCMClient('<api-key>')
     gcm.send(tokens, alert, **options)
+
+
+APNS sending no longer raises an ``APNSSendError`` when error encountered:
+
+.. code-block:: python
+
+    # This fails on v1.0.0
+    from pushjack APNSSendError
+
+    try:
+        apns.send(tokens, alert, **options)
+    except APNSSendError as ex:
+        ex.errors
+
+
+Instead, APNS sending returns an :class:`pushjack.apns.APNSResponse` object:
+
+.. code-block:: python
+
+    # This works on v1.0.0
+    res = apns.send(tokens, alert, **options)
+    res.errors
+    res.error_tokens
 
 
 From v0.4.0 to v0.5.0

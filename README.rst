@@ -50,19 +50,29 @@ Send notifications using the ``APNSClient`` class:
 
     # Send to single device.
     # Keyword arguments are optional.
-    client.send(token,
-                alert,
-                badge='badge count',
-                sound='sound to play',
-                category='category',
-                content_available=True,
-                title='Title',
-                title_loc_key='t_loc_key',
-                title_loc_args='t_loc_args',
-                action_loc_key='a_loc_key',
-                loc_key='loc_key',
-                launch_image='path/to/image.jpg',
-                extra={'custom': 'data'})
+    res = client.send(token,
+                      alert,
+                      badge='badge count',
+                      sound='sound to play',
+                      category='category',
+                      content_available=True,
+                      title='Title',
+                      title_loc_key='t_loc_key',
+                      title_loc_args='t_loc_args',
+                      action_loc_key='a_loc_key',
+                      loc_key='loc_key',
+                      launch_image='path/to/image.jpg',
+                      extra={'custom': 'data'})
+
+    # List of all tokens sent.
+    res.tokens
+
+    # List of any subclassed APNSServerError objects.
+    res.errors
+
+    # Dict mapping token => APNSServerError.
+    res.token_errors
+
 
     # Send to multiple devices by passing a list of tokens.
     client.send([token], alert, **options)
@@ -103,11 +113,36 @@ Send notifications using the ``GCMClient`` class:
 
     # Send to single device.
     # Keyword arguments are optional.
-    client.send(registration_id,
-                data,
-                collapse_key='collapse_key',
-                delay_while_idle=True,
-                time_to_live=604800)
+    res = client.send(registration_id,
+                      data,
+                      collapse_key='collapse_key',
+                      delay_while_idle=True,
+                      time_to_live=604800)
+
+    # List of requests.Response objects from GCM Server.
+    res.responses
+
+    # List of messages sent.
+    res.messages
+
+    # List of registration ids sent.
+    res.registration_ids
+
+    # List of server response data from GCM.
+    res.data
+
+    # List of successful registration ids.
+    res.successes
+
+    # List of failed registration ids.
+    res.failures
+
+    # List of exceptions.
+    res.errors
+
+    # List of canonical ids (registration ids that have changed).
+    res.canonical_ids
+
 
     # Send to multiple devices by passing a list of ids.
     client.send([registration_id], alert, **options)
