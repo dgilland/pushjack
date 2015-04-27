@@ -14,14 +14,15 @@ from .__meta__ import (
 
 from .apns import (
     APNSClient,
-    APNSExpiredToken,
     APNSSandboxClient,
+    APNSResponse,
+    APNSExpiredToken,
 )
 
 from .gcm import (
-    GCMCanonicalID,
     GCMClient,
     GCMResponse,
+    GCMCanonicalID,
 )
 
 from .exceptions import (
@@ -36,7 +37,6 @@ from .exceptions import (
     APNSInvalidTopicSizeError,
     APNSInvalidPayloadSizeError,
     APNSInvalidTokenError,
-    APNSSendError,
     APNSShutdownError,
     APNSUnknownError,
     GCMError,

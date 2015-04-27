@@ -32,7 +32,6 @@ from .exceptions import (
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
     APNSMissingPayloadError,
-    APNSSendError,
     APNSServerError,
     APNSUnsendableError,
     raise_apns_server_error
@@ -42,6 +41,7 @@ from .exceptions import (
 __all__ = (
     'APNSClient',
     'APNSSandboxClient',
+    'APNSResponse',
     'APNSExpiredToken',
 )
 
@@ -166,7 +166,7 @@ class APNSClient(object):
             action_loc_key (str, optional): Display an alert that includes the
                 ``Close`` and ``View`` buttons. The string is used as a key to
                 get a localized string in the current localization to use for
-                the right button’s title instead of ``“View”``.
+                the right button’s title instead of ``"View"``.
             loc_key (str, optional): A key to an alert-message string in a
                 ``Localizable.strings`` file for the current localization.
             loc_args (list, optional): List of string values to appear in place
@@ -176,18 +176,16 @@ class APNSClient(object):
             extra (dict, optional): Extra data to include with the alert.
 
         Returns:
-            None
+            :class:`APNSResponse`: Response from APNS containing tokens sent
+                and any errors encountered.
 
         Raises:
             :class:`pushjack.exceptions.APNSInvalidTokenError`: Invalid token
                 format.
             :class:`pushjack.exceptions.APNSInvalidPayloadSizeError`:
                 Notification payload size too large.
-            :class:`pushjack.exceptions.APNSSendError`: APNS error response
-                from server containing a list of
-                all APNS server errors and a mapping of tokens to errors for
-                the ones that failed. See :mod:`pushjack.exceptions` for full
-                listing of possible errors.
+            :class:`pushjack.exceptions.APNSMissingPayloadError`: Notification
+                payload is empty.
 
         .. versionadded:: 0.0.1
 
@@ -199,10 +197,20 @@ class APNSClient(object):
 
         .. versionchanged:: 0.5.0
 
+            - Add ``batch_size`` argument.
+            - Add ``error_timeout`` argument.
+            - Replace ``priority`` argument with ``low_priority=False``.
             - Resume sending notifications when a sent token has an error
               response.
-            - Raise :class:`pushjack.exceptions.APNSSendError` if any tokens
+            - Raise ``APNSSendError`` if any tokens
               have an error response.
+
+        .. versionchanged:: 1.0.0
+
+            - Return :class:`APNSResponse` instead of raising
+              ``APNSSendError``.
+            - Raise :class:`pushjack.exceptions.APNSMissingPayloadError` if
+              payload is empty.
         """
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
@@ -232,7 +240,7 @@ class APNSClient(object):
                                    priority,
                                    batch_size)
 
-        self.conn.sendall(stream, error_timeout)
+        return self.conn.sendall(stream, error_timeout)
 
     def get_expired_tokens(self):
         """Return inactive device tokens that are no longer registered to
@@ -423,7 +431,7 @@ class APNSConnection(object):
             log.debug(('Encountered {0} errors while sending to APNS.'
                        .format(len(errors))))
 
-        return APNSResponse(stream.tokens, errors)
+        return APNSResponse(stream.tokens, stream.message, errors)
 
 
 class APNSMessage(object):
@@ -547,13 +555,42 @@ class APNSMessageStream(object):
         """Return whether all tokens have been processed."""
         return self.next_identifier >= len(self.tokens)
 
+    def pack(self, token, identifier, message, expiration, priority):
+        """Return a packed APNS socket frame for given token."""
+        token_bin = unhexlify(token)
+        token_len = len(token_bin)
+        message_len = len(message)
+
+        # |CMD|FRAMELEN|{token}|{message}|{id:4}|{expiration:4}|{priority:1}
+        # 5 items, each 3 bytes prefix, then each item length
+        frame_len = (
+            APNS_PUSH_FRAME_ITEM_COUNT * APNS_PUSH_FRAME_ITEM_PREFIX_LEN +
+            token_len +
+            message_len +
+            APNS_PUSH_IDENTIFIER_LEN +
+            APNS_PUSH_EXPIRATION_LEN +
+            APNS_PUSH_PRIORITY_LEN)
+        frame_fmt = '>BIBH{0}sBH{1}sBHIBHIBHB'.format(token_len, message_len)
+
+        # NOTE: Each bare int below is the corresponding frame item ID.
+        frame = struct.pack(
+            frame_fmt,
+            APNS_PUSH_COMMAND, frame_len,  # BI
+            1, token_len, token_bin,  # BH{token_len}s
+            2, message_len, message,  # BH{message_len}s
+            3, APNS_PUSH_IDENTIFIER_LEN, identifier,  # BHI
+            4, APNS_PUSH_EXPIRATION_LEN, expiration,  # BHI
+            5, APNS_PUSH_PRIORITY_LEN, priority)  # BHB
+
+        return frame
+
     def __len__(self):
         """Return count of number of notifications."""
         return len(self.tokens)
 
     def __iter__(self):
         """Iterate through each device token and yield APNS socket frame."""
-        payload = self.payload.to_json()
+        message = self.message.to_json()
 
         data = b''
         tokens = self.tokens[self.next_identifier:]
@@ -563,11 +600,11 @@ class APNSMessageStream(object):
                 log.debug(('Preparing notification for APNS token {0}'
                            .format(token)))
 
-                data += pack_frame(token,
-                                   self.next_identifier,
-                                   payload,
-                                   self.expiration,
-                                   self.priority)
+                data += self.pack(token,
+                                  self.next_identifier,
+                                  message,
+                                  self.expiration,
+                                  self.priority)
                 self.next_identifier += 1
 
             yield data
@@ -615,14 +652,18 @@ class APNSResponse(object):
 
     Attributes:
         tokens (list): List of all tokens sent during bulk sending.
+        message (APNSMessage): :class:`APNSMessage` object sent.
         errors (list): List of APNS exceptions for each failed token.
         failures (list): List of all failed tokens.
         successes (list): List of all successful tokens.
         token_errors (dict): Dict mapping the failed tokens to their respective
             APNS exception.
+
+    .. versionadded:: 1.0.0
     """
-    def __init__(self, tokens, errors):
+    def __init__(self, tokens, message, errors):
         self.tokens = tokens
+        self.message = message
         self.errors = errors
         self.failures = []
         self.successes = []
@@ -693,39 +734,6 @@ def do_ssl_handshake(sock):
                 select.select([], [sock], [])
             else:
                 raise
-
-
-def pack_frame(token, identifier, payload, expiration, priority):
-    """Return a packed APNS socket frame for given token."""
-    token_bin = unhexlify(token)
-    token_len = len(token_bin)
-    payload_len = len(payload)
-
-    frame_len = calc_frame_length(token_len, payload_len)
-    frame_fmt = '>BIBH{0}sBH{1}sBHIBHIBHB'.format(token_len, payload_len)
-
-    # NOTE: Each bare int below is the corresponding frame item ID.
-    frame = struct.pack(frame_fmt,
-                        APNS_PUSH_COMMAND, frame_len,  # BI
-                        1, token_len, token_bin,  # BH{token_len}s
-                        2, payload_len, payload,  # BH{payload_len}s
-                        3, APNS_PUSH_IDENTIFIER_LEN, identifier,  # BHI
-                        4, APNS_PUSH_EXPIRATION_LEN, expiration,  # BHI
-                        5, APNS_PUSH_PRIORITY_LEN, priority)  # BHB
-
-    return frame
-
-
-def calc_frame_length(token_len, payload_len):
-    """Return frame length for given token and payload lengths."""
-    # |CMD|FRAMELEN|{token}|{payload}|{id:4}|{expiration:4}|{priority:1}
-    # 5 items, each 3 bytes prefix, then each item length
-    return (APNS_PUSH_FRAME_ITEM_COUNT * APNS_PUSH_FRAME_ITEM_PREFIX_LEN +
-            token_len +
-            payload_len +
-            APNS_PUSH_IDENTIFIER_LEN +
-            APNS_PUSH_EXPIRATION_LEN +
-            APNS_PUSH_PRIORITY_LEN)
 
 
 def valid_token(token):

@@ -76,7 +76,7 @@ from .fixtures import (
       0, 3, 10)),
 ])
 def test_apns_send(apns_client, apns_socket, tokens, alert, extra, expected):
-    with mock.patch('pushjack.apns.pack_frame') as pack_frame:
+    with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
         apns_client.send(tokens, alert, **extra)
 
         if not isinstance(tokens, list):
@@ -105,21 +105,21 @@ def test_apns_resend(apns_client, apns_socket, tokens, identifiers, exception):
 
     apns_socket.sendall = sendall
 
-    with pytest.raises(exceptions.APNSSendError) as exc_info:
-        apns_client.send(tokens, 'foo')
+    res = apns_client.send(tokens, 'foo')
 
-    ex = exc_info.value
     expected_failures = [token for i, token in enumerate(tokens)
                          if i in identifiers]
     expected_successes = [token for i, token in enumerate(tokens)
                           if i not in identifiers]
 
-    assert ex.tokens == tokens
-    assert all([isinstance(error, exception) for error in ex.errors])
-    assert ex.failures == expected_failures
-    assert ex.successes == expected_successes
-    assert set(ex.failures) == set(ex.token_errors.keys())
-    assert set(ex.errors) == set(ex.token_errors.values())
+    assert isinstance(res, apns.APNSResponse)
+    assert res.tokens == tokens
+    assert isinstance(res.message, apns.APNSMessage)
+    assert all([isinstance(error, exception) for error in res.errors])
+    assert res.failures == expected_failures
+    assert res.successes == expected_successes
+    assert set(res.failures) == set(res.token_errors.keys())
+    assert set(res.errors) == set(res.token_errors.values())
 
 
 @parametrize('token', [
@@ -145,7 +145,7 @@ def test_invalid_token(apns_client, apns_socket, token):
 def test_apns_use_extra(apns_client, apns_socket):
     test_token = apns_tokens(1)
 
-    with mock.patch('pushjack.apns.pack_frame') as pack_frame:
+    with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
         apns_client.send(test_token,
                          'sample',
                          extra={'foo': 'bar'},
@@ -182,7 +182,7 @@ def test_apns_socket_write(apns_client, apns_socket):
     (exceptions.APNSMissingPayloadError, None)
 ])
 def test_apns_invalid_payload_size(apns_client, exception, alert):
-    with mock.patch('pushjack.apns.pack_frame') as pack_frame:
+    with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
         with pytest.raises(exception):
             apns_client.send(apns_tokens(1), alert)
 
@@ -203,10 +203,8 @@ def test_apns_invalid_payload_size(apns_client, exception, alert):
 ])
 def test_apns_error_handling(apns_client, code, exception):
     with apns_create_error_socket(code) as create_socket:
-        try:
-            apns_client.send(apns_tokens(1), 'foo')
-        except exceptions.APNSSendError as ex:
-            assert isinstance(ex.errors[0], exception)
+        res = apns_client.send(apns_tokens(1), 'foo')
+        assert isinstance(res.errors[0], exception)
 
 
 @parametrize('tokens', [

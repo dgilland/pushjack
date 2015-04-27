@@ -17,7 +17,6 @@ __all__ = (
     'APNSInvalidTopicSizeError',
     'APNSInvalidPayloadSizeError',
     'APNSInvalidTokenError',
-    'APNSSendError',
     'APNSShutdownError',
     'APNSUnknownError',
     'GCMError',
@@ -149,34 +148,6 @@ class APNSUnsendableError(APNSError):
     another notification.
     """
     description = 'Unable to send due to previous error'
-
-
-class APNSSendError(APNSError):
-    """Exception for errors from bulk sending.
-
-    Attributes:
-        tokens (list): List of all tokens sent during bulk sending.
-        errors (list): List of APNS exceptions for each failed token.
-        failures (list): List of all failed tokens.
-        successes (list): List of all successful tokens.
-        token_errors (dict): Dict mapping the failed tokens to their respective
-            APNS exception.
-    """
-    def __init__(self, message, tokens, errors):
-        super(APNSSendError, self).__init__(message)
-        self.tokens = tokens
-        self.errors = errors
-        self.failures = []
-        self.successes = []
-        self.token_errors = {}
-
-        for err in errors:
-            token = tokens[err.identifier]
-            self.failures.append(token)
-            self.token_errors[token] = err
-
-        self.successes = [token for token in tokens
-                          if token not in self.failures]
 
 
 class GCMError(NotificationError):
