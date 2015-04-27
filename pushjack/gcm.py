@@ -113,15 +113,38 @@ class GCMClient(object):
         return response
 
 
-class GCMCanonicalID(namedtuple('GCMCanonicalID', ['old_id', 'new_id'])):
-    """Represents a canonical ID returned by the GCM Server. This object
-    indicates that a previously registered ID has changed to a new one.
+class GCMConnection(object):
+    """Wrapper around requests session bound to GCM config."""
+    def __init__(self, api_key, url=GCM_URL):
+        self.api_key = api_key
+        self.url = url
 
-    Attributes:
-        old_id (str): Previously registered ID.
-        new_id (str): New registration ID that should replace :attr:`old_id`.
-    """
-    pass
+        self.session = requests.Session()
+        self.session.auth = ('key', self.api_key)
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+        })
+
+    def post(self, payload):
+        """Send single POST request with payload to GCM server."""
+        log.debug(('Sending GCM notification batch containing {0} bytes.'
+                   .format(len(payload))))
+        return self.session.post(self.url, payload)
+
+    def send(self, stream):
+        """Send payloads to GCM server and return list of responses."""
+        log.debug(('Preparing to send {0} notifications to GCM.'
+                   .format(len(stream))))
+
+        response = GCMResponse([self.post(payload) for payload in stream])
+
+        log.debug('Sent {0} notifications to GCM.'.format(len(stream)))
+
+        if response.failures:
+            log.debug(('Encountered {0} errors while sending to GCM.'
+                       .format(len(response.failures))))
+
+        return response
 
 
 class GCMPayload(object):
@@ -180,40 +203,6 @@ class GCMPayloadStream(object):
 
             payload['registration_ids'] = ids
             yield json_dumps(payload)
-
-
-class GCMConnection(object):
-    """Wrapper around requests session bound to GCM config."""
-    def __init__(self, api_key, url=GCM_URL):
-        self.api_key = api_key
-        self.url = url
-
-        self.session = requests.Session()
-        self.session.auth = ('key', self.api_key)
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-        })
-
-    def post(self, payload):
-        """Send single POST request with payload to GCM server."""
-        log.debug(('Sending GCM notification batch containing {0} bytes.'
-                   .format(len(payload))))
-        return self.session.post(self.url, payload)
-
-    def send(self, stream):
-        """Send payloads to GCM server and return list of responses."""
-        log.debug(('Preparing to send {0} notifications to GCM.'
-                   .format(len(stream))))
-
-        response = GCMResponse([self.post(payload) for payload in stream])
-
-        log.debug('Sent {0} notifications to GCM.'.format(len(stream)))
-
-        if response.failures:
-            log.debug(('Encountered {0} errors while sending to GCM.'
-                       .format(len(response.failures))))
-
-        return response
 
 
 class GCMResponse(object):
@@ -312,3 +301,14 @@ class GCMResponse(object):
         """
         self.canonical_ids.append(GCMCanonicalID(registration_id,
                                                  canonical_id))
+
+
+class GCMCanonicalID(namedtuple('GCMCanonicalID', ['old_id', 'new_id'])):
+    """Represents a canonical ID returned by the GCM Server. This object
+    indicates that a previously registered ID has changed to a new one.
+
+    Attributes:
+        old_id (str): Previously registered ID.
+        new_id (str): New registration ID that should replace :attr:`old_id`.
+    """
+    pass

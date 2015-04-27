@@ -258,14 +258,172 @@ class APNSSandboxClient(APNSClient):
     feedback_host = APNS_FEEDBACK_SANDBOX_HOST
 
 
-class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
-    """Represents an expired APNS token with the timestamp of when it expired.
+class APNSConnection(object):
+    """Manager for APNS socket connection."""
+    def __init__(self, host, port, certificate):
+        self.host = host
+        self.port = port
+        self.certificate = certificate
+        self.sock = None
 
-    Attributes:
-        token (str): Expired APNS token.
-        timestamp (int): Epoch timestamp.
-    """
-    pass
+    def connect(self):
+        """Lazily connect to APNS server. Re-establish connection if previously
+        closed.
+        """
+        if self.sock:
+            return
+
+        log.debug(('Establishing connection to APNS on {0}:{1} using '
+                   'certificate at {2}'
+                   .format(self.host, self.port, self.certificate)))
+
+        self.sock = create_socket(self.host, self.port, self.certificate)
+
+        log.debug(('Established connection to APNS on {0}:{1}.'
+                   .format(self.host, self.port)))
+
+    def close(self):
+        """Disconnect from APNS server."""
+        if self.sock:
+            log.debug('Closing connection to APNS.')
+            self.sock.close()
+        self.sock = None
+
+    @property
+    def client(self):
+        """Return client socket connection to APNS server."""
+        self.connect()
+        return self.sock
+
+    def writable(self, timeout):
+        """Return whether connection is writable."""
+        try:
+            return select.select([], [self.client], [], timeout)[1]
+        except Exception:  # pragma: no cover
+            log.debug(('Error while waiting for APNS socket to become '
+                       'writable.'))
+            self.close()
+            raise
+
+    def readable(self, timeout):
+        """Return whether connection is readable."""
+        try:
+            return select.select([self.client], [], [], timeout)[0]
+        except Exception:  # pragma: no cover
+            log.debug(('Error while waiting for APNS socket to become '
+                       'readable.'))
+            self.close()
+            raise
+
+    def read(self, buffsize, timeout=10):
+        """Return read data up to `buffsize`."""
+        data = b''
+
+        while True:
+            if not self.readable(timeout):  # pragma: no cover
+                self.close()
+                raise socket.timeout
+
+            chunk = self.client.read(buffsize - len(data))
+            data += chunk
+
+            if not chunk or len(data) >= buffsize or not timeout:
+                # Either we've read all data or this is a nonblocking read.
+                break
+
+        return data
+
+    def readchunks(self, buffsize, timeout=10):
+        """Return stream of socket data in chunks <= `buffsize` until no more
+        data found.
+        """
+        while True:
+            data = self.read(buffsize, timeout)
+            yield data
+
+            if not data:  # pragma: no cover
+                break
+
+    def write(self, data, timeout=10):
+        """Write data to socket."""
+        if not self.writable(timeout):  # pragma: no cover
+            self.close()
+            raise socket.timeout
+
+        log.debug(('Sending APNS notification batch containing {0} bytes.'
+                   .format(len(data))))
+
+        return self.client.sendall(data)
+
+    def check_error(self, timeout=10):
+        """Check for APNS errors."""
+        if not self.readable(timeout):
+            # No error response.
+            return
+
+        data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+        command = struct.unpack('>B', data[:1])[0]
+
+        if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
+            self.close()
+            raise APNSServerError(('Error response command must be {0}. '
+                                   'Found: {1}'
+                                   .format(APNS_ERROR_RESPONSE_COMMAND,
+                                           command)))
+
+        code, identifier = struct.unpack('>BI', data[1:])
+
+        log.debug(('Received APNS error response with '
+                   'code={0} for identifier={1}.'
+                   .format(code, identifier)))
+
+        self.close()
+        raise_apns_server_error(code, identifier)
+
+    def send(self, frames):
+        """Send stream of frames to APNS server."""
+        for frame in frames:
+            self.write(frame)
+            self.check_error(0)
+
+    def sendall(self, stream, error_timeout=10):
+        """Send all notifications while handling errors. If an error occurs,
+        then resume sending starting from after the token that failed. If any
+        tokens failed, raise an error after sending all tokens.
+        """
+        log.debug(('Preparing to send {0} notifications to APNS.'
+                   .format(len(stream))))
+
+        errors = []
+
+        while True:
+            try:
+                self.send(stream)
+
+                # Perform the final error check here before exiting. A large
+                # enough timeout should be used so that no errors are missed.
+                self.check_error(error_timeout)
+            except APNSServerError as ex:
+                errors.append(ex)
+                stream.seek(ex.identifier)
+
+                if ex.fatal:
+                    # We can't continue due to a fatal error. Go ahead and
+                    # convert remaining notifications to errors.
+                    errors += [APNSUnsendableError(i + ex.identifier)
+                               for i, _ in enumerate(stream.peek())]
+                    break
+
+            if stream.eof():
+                break
+
+        log.debug('Sent {0} notifications to APNS.'.format(len(stream)))
+
+        if errors:
+            log.debug(('Encountered {0} errors while sending to APNS.'
+                       .format(len(errors))))
+
+        return APNSResponse(stream.tokens, errors)
 
 
 class APNSPayload(object):
@@ -452,171 +610,41 @@ class APNSFeedbackStream(object):
                     break
 
 
-class APNSConnection(object):
-    """Manager for APNS socket connection."""
-    def __init__(self, host, port, certificate):
-        self.host = host
-        self.port = port
-        self.certificate = certificate
-        self.sock = None
+class APNSResponse(object):
+    """Response from APNS after sending tokens.
 
-    def connect(self):
-        """Lazily connect to APNS server. Re-establish connection if previously
-        closed.
-        """
-        if self.sock:
-            return
+    Attributes:
+        tokens (list): List of all tokens sent during bulk sending.
+        errors (list): List of APNS exceptions for each failed token.
+        failures (list): List of all failed tokens.
+        successes (list): List of all successful tokens.
+        token_errors (dict): Dict mapping the failed tokens to their respective
+            APNS exception.
+    """
+    def __init__(self, tokens, errors):
+        self.tokens = tokens
+        self.errors = errors
+        self.failures = []
+        self.successes = []
+        self.token_errors = {}
 
-        log.debug(('Establishing connection to APNS on {0}:{1} using '
-                   'certificate at {2}'
-                   .format(self.host, self.port, self.certificate)))
+        for err in errors:
+            token = tokens[err.identifier]
+            self.failures.append(token)
+            self.token_errors[token] = err
 
-        self.sock = create_socket(self.host, self.port, self.certificate)
+        self.successes = [token for token in tokens
+                          if token not in self.failures]
 
-        log.debug(('Established connection to APNS on {0}:{1}.'
-                   .format(self.host, self.port)))
 
-    def close(self):
-        """Disconnect from APNS server."""
-        if self.sock:
-            log.debug('Closing connection to APNS.')
-            self.sock.close()
-        self.sock = None
+class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
+    """Represents an expired APNS token with the timestamp of when it expired.
 
-    @property
-    def client(self):
-        """Return client socket connection to APNS server."""
-        self.connect()
-        return self.sock
-
-    def writable(self, timeout):
-        """Return whether connection is writable."""
-        try:
-            return select.select([], [self.client], [], timeout)[1]
-        except Exception:  # pragma: no cover
-            log.debug(('Error while waiting for APNS socket to become '
-                       'writable.'))
-            self.close()
-            raise
-
-    def readable(self, timeout):
-        """Return whether connection is readable."""
-        try:
-            return select.select([self.client], [], [], timeout)[0]
-        except Exception:  # pragma: no cover
-            log.debug(('Error while waiting for APNS socket to become '
-                       'readable.'))
-            self.close()
-            raise
-
-    def read(self, buffsize, timeout=10):
-        """Return read data up to `buffsize`."""
-        data = b''
-
-        while True:
-            if not self.readable(timeout):  # pragma: no cover
-                self.close()
-                raise socket.timeout
-
-            chunk = self.client.read(buffsize - len(data))
-            data += chunk
-
-            if not chunk or len(data) >= buffsize or not timeout:
-                # Either we've read all data or this is a nonblocking read.
-                break
-
-        return data
-
-    def readchunks(self, buffsize, timeout=10):
-        """Return stream of socket data in chunks <= `buffsize` until no more
-        data found.
-        """
-        while True:
-            data = self.read(buffsize, timeout)
-            yield data
-
-            if not data:  # pragma: no cover
-                break
-
-    def write(self, data, timeout=10):
-        """Write data to socket."""
-        if not self.writable(timeout):  # pragma: no cover
-            self.close()
-            raise socket.timeout
-
-        log.debug(('Sending APNS notification batch containing {0} bytes.'
-                   .format(len(data))))
-
-        return self.client.sendall(data)
-
-    def check_error(self, timeout=10):
-        """Check for APNS errors."""
-        if not self.readable(timeout):
-            # No error response.
-            return
-
-        data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
-        command = struct.unpack('>B', data[:1])[0]
-
-        if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
-            self.close()
-            raise APNSServerError(('Error response command must be {0}. '
-                                   'Found: {1}'
-                                   .format(APNS_ERROR_RESPONSE_COMMAND,
-                                           command)))
-
-        code, identifier = struct.unpack('>BI', data[1:])
-
-        log.debug(('Received APNS error response with '
-                   'code={0} for identifier={1}.'
-                   .format(code, identifier)))
-
-        self.close()
-        raise_apns_server_error(code, identifier)
-
-    def send(self, frames):
-        """Send stream of frames to APNS server."""
-        for frame in frames:
-            self.write(frame)
-            self.check_error(0)
-
-    def sendall(self, stream, error_timeout=10):
-        """Send all notifications while handling errors. If an error occurs,
-        then resume sending starting from after the token that failed. If any
-        tokens failed, raise an error after sending all tokens.
-        """
-        log.debug(('Preparing to send {0} notifications to APNS.'
-                   .format(len(stream))))
-
-        errors = []
-
-        while True:
-            try:
-                self.send(stream)
-
-                # Perform the final error check here before exiting. A large
-                # enough timeout should be used so that no errors are missed.
-                self.check_error(error_timeout)
-            except APNSServerError as ex:
-                errors.append(ex)
-                stream.seek(ex.identifier)
-
-                if ex.fatal:
-                    # We can't continue due to a fatal error. Go ahead and
-                    # convert remaining notifications to errors.
-                    errors += [APNSUnsendableError(i + ex.identifier)
-                               for i, _ in enumerate(stream.peek())]
-                    break
-
-            if stream.eof():
-                break
-
-        log.debug('Sent {0} notifications to APNS.'.format(len(stream)))
-
-        if errors:
-            log.debug(('Encountered {0} errors while sending to APNS.'
-                       .format(len(errors))))
-            raise APNSSendError('APNS send error', stream.tokens, errors)
+    Attributes:
+        token (str): Expired APNS token.
+        timestamp (int): Epoch timestamp.
+    """
+    pass
 
 
 def create_socket(host, port, certificate):
