@@ -14,7 +14,7 @@ APNS
 Exceptions
 ++++++++++
 
-The :class:`.APNSServerError` class of exceptions represent error responses from APNS. These exceptions will contain attributes for ``code``, ``description``, and ``identifier``. The ``identifier`` attribute is the list index of the token that failed. However, none of these exceptions will be raised directly. Instead, APNS server errors are collected and packaged into a :class:`.APNSSendError` object and raised during :func:`pushjack.apns.send`. This exception object provides a list of the raw exceptions as well as a mapping of the actual token and its associated error.
+The :class:`.APNSServerError` class of exceptions represent error responses from APNS. These exceptions will contain attributes for ``code``, ``description``, and ``identifier``. The ``identifier`` attribute is the list index of the token that failed. However, none of these exceptions will be raised directly. Instead, APNS server errors are collected and packaged into a :class:`.APNSResponse` object and returned by :meth:`.APNSClient.send`. This object provides a list of the raw exceptions as well as a mapping of the actual token and its associated error.
 
 Below is a listing of APNS Server exceptions:
 
@@ -39,9 +39,6 @@ Exception                              Code  Description
     :members:
 
 .. autoclass:: pushjack.exceptions.APNSAuthError
-    :members:
-
-.. autoclass:: pushjack.exceptions.APNSSendError
     :members:
 
 .. autoclass:: pushjack.exceptions.APNSServerError

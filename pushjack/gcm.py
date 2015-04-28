@@ -38,14 +38,7 @@ GCM_MAX_RECIPIENTS = 1000
 
 
 class GCMClient(object):
-    """GCM client class.
-
-    Raises:
-        GCMAuthError: If ``GCM_API_KEY`` not set in `config`.
-
-    See Also:
-        :mod:`pushjack.gcm`
-    """
+    """GCM client class."""
     url = GCM_URL
 
     def __init__(self, api_key):
@@ -87,12 +80,11 @@ class GCMClient(object):
                 request will be tested.
 
         Returns:
-            :class:`GCMResponse`
+            :class:`GCMResponse`: Response from GCM server.
 
         Raises:
-            :class:`pushjack.exceptions.GCMServerError`: If GCM server response
-                indicates failure. See :mod:`pushjack.exceptions` for full
-                listing.
+            GCMAuthError: If :attr:`api_key` not set.
+                :class:`.GCMAuthError`
 
         .. versionadded:: 0.0.1
 

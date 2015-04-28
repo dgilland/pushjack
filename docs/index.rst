@@ -11,16 +11,6 @@ Guide
 
     install
     upgrading
-
-
-API Reference
-=============
-
-Includes links to source code.
-
-.. toctree::
-    :maxdepth: 3
-
     api
 
 

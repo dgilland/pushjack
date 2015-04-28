@@ -138,9 +138,6 @@ class APNSClient(object):
                 character hex string.
             message (str|dict): Message string or APS dictionary. Set to
                 ``None`` to send an empty alert notification.
-            conn (APNSConnection, optional): Provide :class:`APNSConnection`
-                instance. Defaults to ``None`` which creates a non-persistent
-                connection.
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -180,12 +177,12 @@ class APNSClient(object):
                 and any errors encountered.
 
         Raises:
-            :class:`pushjack.exceptions.APNSInvalidTokenError`: Invalid token
-                format.
-            :class:`pushjack.exceptions.APNSInvalidPayloadSizeError`:
-                Notification payload size too large.
-            :class:`pushjack.exceptions.APNSMissingPayloadError`: Notification
-                payload is empty.
+            APNSInvalidTokenError: Invalid token format.
+                :class:`.APNSInvalidTokenError`
+            APNSInvalidPayloadSizeError: Notification payload size too large.
+                :class:`.APNSInvalidPayloadSizeError`
+            APNSMissingPayloadError: Notificationpayload is empty.
+                :class:`.APNSMissingPayloadError`
 
         .. versionadded:: 0.0.1
 
@@ -197,9 +194,9 @@ class APNSClient(object):
 
         .. versionchanged:: 0.5.0
 
-            - Add ``batch_size`` argument.
-            - Add ``error_timeout`` argument.
-            - Replace ``priority`` argument with ``low_priority=False``.
+            - Added ``batch_size`` argument.
+            - Added ``error_timeout`` argument.
+            - Replaced ``priority`` argument with ``low_priority=False``.
             - Resume sending notifications when a sent token has an error
               response.
             - Raise ``APNSSendError`` if any tokens
@@ -209,7 +206,7 @@ class APNSClient(object):
 
             - Return :class:`APNSResponse` instead of raising
               ``APNSSendError``.
-            - Raise :class:`pushjack.exceptions.APNSMissingPayloadError` if
+            - Raise :class:`.APNSMissingPayloadError` if
               payload is empty.
         """
         if not isinstance(ids, (list, tuple)):
