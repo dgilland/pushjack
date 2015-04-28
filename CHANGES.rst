@@ -4,7 +4,7 @@ Changelog
 =========
 
 
-vx.x.x (xxxx-xx-xx)
+v1.0.0 (2015-04-28)
 -------------------
 
 - Add ``APNSSandboxClient`` for sending notifications to APNS sandbox server.
