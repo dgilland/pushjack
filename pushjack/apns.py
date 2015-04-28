@@ -367,6 +367,10 @@ class APNSConnection(object):
             return
 
         data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+
+        if not data:
+            return
+
         command = struct.unpack('>B', data[:1])[0]
 
         if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
