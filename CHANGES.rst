@@ -10,6 +10,7 @@ vx.x.x (xxxx-xx-xx)
 - Add ``APNSSandboxClient`` for sending notifications to APNS sandbox server.
 - Add ``message`` attribute to ``APNSResponse``.
 - Add internal logging.
+- Fix APNS error checking to properly handle reading when no data returned.
 - Make APNS sending stop during iteration if a fatal error is received from APNS server (e.g. invalid topic, invalid payload size, etc).
 - Make APNS and GCM clients maintain an active connection to server.
 - Make APNS always return ``APNSResponse`` object instead of only raising ``APNSSendError`` when errors encountered. (**breaking change**)
