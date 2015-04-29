@@ -191,13 +191,11 @@ class APNSClient(object):
         .. versionadded:: 0.0.1
 
         .. versionchanged:: 0.4.0
-
             - Added support for bulk sending.
             - Made sending and error checking non-blocking.
             - Removed `sock`, `payload`, and `identifer` arguments.
 
         .. versionchanged:: 0.5.0
-
             - Added ``batch_size`` argument.
             - Added ``error_timeout`` argument.
             - Replaced ``priority`` argument with ``low_priority=False``.
@@ -207,7 +205,6 @@ class APNSClient(object):
               have an error response.
 
         .. versionchanged:: 1.0.0
-
             - Return :class:`APNSResponse` instead of raising
               ``APNSSendError``.
             - Raise :class:`.APNSMissingPayloadError` if

@@ -93,7 +93,6 @@ class GCMClient(object):
         .. versionadded:: 0.0.1
 
         .. versionchanged:: 0.4.0
-
             - Added support for bulk sending.
             - Removed `request` argument.
         """
