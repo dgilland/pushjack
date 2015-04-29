@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Lower level module for Google Cloud Messaging service.
+"""Client module for Google Cloud Messaging service.
 
-This module is meant to provide basic functionality for sending push
-notifications. The send functions don't try to do anything with the GCM server
-responses other than return them as is. There is no exception handling of those
-responses so error processing will need to be handled by the caller.
+By default, sending notifications is optimized to deliver notifications to the
+maximum number of allowable recipients per HTTP request (currently 1,000
+recipients as specified in the GCM documentation).
 
-Google's documentation for GCM is available at:
+The return from a send operation will contain a response object that parses all
+GCM HTTP responses and groups them by errors, successful registration ids,
+failed registration ids, canonical ids, and the raw responses from each
+request.
+
+For more details regarding Google's GCM documentation, consult the following:
 
 - `GCM for Android <http://goo.gl/swDCy>`_
 - `GCM Server Reference <http://goo.gl/GPjNwV>`_

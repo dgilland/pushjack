@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Lower level module for Apple Push Notification service.
+"""Client module for Apple Push Notification service.
 
 The algorithm used to send bulk push notifications is optimized to eagerly
-check for errors within a single thread. During bulk sending, error checking is
-performed after each send and is non-blocking until the last notification is
-sent. A final, blocking error check is performed using the timeout provided in
-the configuration settings. This eager error checking is done to ensure that
-no errors are missed (e.g. by waiting too long to check errors before the
-connection is closed by the APNS server) without having to use two threads to
-read and write on the socket.
+check for errors using a single thread. Error checking is performed after each
+batch send (bulk notifications may be broken up into multiple batches) and is
+non-blocking until the last notification is sent. A final, blocking error check
+is performed using a customizable error timeout. This style of error checking
+is done to ensure that no errors are missed (e.g. by waiting too long to check
+errors before the connection is closed by the APNS server) without having to
+use two threads to read and write.
 
-Apple's documentation for APNS is available at:
+The return from a send operation will contain a response object that includes
+any errors encountered while sending. These errors will be associated with the
+failed tokens.
+
+For more details regarding Apple's APNS documentation, consult the following:
 
 - `Apple Push Notification Service <http://goo.gl/wFVr2S>`_
 - `Provider Communication with APNS <http://goo.gl/qMfByr>`_
