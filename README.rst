@@ -87,6 +87,9 @@ Send notifications using the ``APNSClient`` class:
     # Get expired tokens.
     expired_tokens = client.get_expired_tokens()
 
+    # Close APNS connection
+    client.close()
+
 
 For the APNS sandbox, use ``APNSSandboxClient`` instead:
 
