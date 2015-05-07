@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.0.1 (2015-05-07)
+-------------------
+
 - Fix incorrect authorization header in GCM client. Thanks `Brad Montgomery`_!
 
 
