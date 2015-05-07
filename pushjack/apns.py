@@ -369,7 +369,7 @@ class APNSConnection(object):
 
         data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
 
-        if not data:
+        if not data:  # pragma: no cover
             return
 
         command = struct.unpack('>B', data[:1])[0]
