@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+- Fix incorrect authorization header in GCM client. Thanks `Brad Montgomery`_!
+
+
 v1.0.0 (2015-04-28)
 -------------------
 
@@ -112,3 +115,6 @@ v0.0.1 (2015-03-25)
 -------------------
 
 - First release.
+
+
+.. _Brad Montgomery: https://github.com/bradmontgomery
