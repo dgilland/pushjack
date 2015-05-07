@@ -149,19 +149,24 @@ def test_gcm_invalid_api_key(gcm_client):
         gcm_client.send('abc', {})
 
 
-@parametrize('tokens,data,extra,expected', [
+@parametrize('tokens,data,extra,auth,expected', [
     ('abc',
      {},
      {},
+     mock.call().headers.update({'Authorization': 'key=1234',
+                                 'Content-Type': 'application/json'}),
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}')),
     (['abc'],
      {},
      {},
+     mock.call().headers.update({'Authorization': 'key=1234',
+                                 'Content-Type': 'application/json'}),
      mock.call().post('https://android.googleapis.com/gcm/send',
                       b'{"data":{},"registration_ids":["abc"]}'))
 ])
-def test_gcm_connection_call(gcm_client, tokens, data, extra, expected):
+def test_gcm_connection_call(gcm_client, tokens, data, extra, auth, expected):
     with mock.patch('requests.Session') as Session:
         gcm_client.send(tokens, data, **extra)
+        assert auth in Session.mock_calls
         assert expected in Session.mock_calls
