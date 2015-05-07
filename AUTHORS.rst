@@ -11,4 +11,4 @@ Lead
 Contributors
 ------------
 
-- None
+- Brad Montgomery, `bradmontgomery@github <https://github.com/bradmontgomery>`_

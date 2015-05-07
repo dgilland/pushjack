@@ -115,8 +115,8 @@ class GCMConnection(object):
         self.url = url
 
         self.session = requests.Session()
-        self.session.auth = ('key', self.api_key)
         self.session.headers.update({
+            'Authorization': 'key={0}'.format(self.api_key),
             'Content-Type': 'application/json',
         })
 
