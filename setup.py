@@ -62,7 +62,7 @@ setup(
     test_suite='tests',
     keywords='apns ios gcm android push notifications',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
