@@ -156,16 +156,17 @@ def gcm_server_response_factory(content, status_code=200):
 def gcm_server_response(url, request):
     payload = json_loads(request.body)
     headers = {'content-type': 'application/json'}
+    registration_ids = gcm_registration_ids(payload)
     content = {
         'multicast_id': 1,
-        'success': len(payload['registration_ids']),
+        'success': len(registration_ids),
         'failure': 0,
         'canonical_ids': 0,
         'results': []
     }
 
     content['results'] = [{'message_id': registration_id}
-                          for registration_id in payload['registration_ids']]
+                          for registration_id in registration_ids]
 
     return httmock.response(200, content, headers, None, 1, request)
 
@@ -174,3 +175,12 @@ def gcm_server_response(url, request):
 def gcm_client():
     """Return GCM client."""
     return GCMClient(api_key='1234')
+
+
+def gcm_registration_ids(payload):
+    if 'registration_ids' in payload:
+        ids = payload['registration_ids']
+    else:
+        ids = [payload['to']]
+
+    return ids

@@ -4,6 +4,12 @@ Changelog
 =========
 
 
+vX.X.X (XXXX-XX-XX)
+-------------------
+
+- Replace ``"registration_ids"`` field with ``"to"`` field when sending to a single recipient since ``"registration_ids"`` field has been deprecated for single recipients. [``GCM``]
+
+
 v1.0.1 (2015-05-07)
 -------------------
 

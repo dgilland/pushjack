@@ -22,14 +22,14 @@ from .fixtures import (
 
 @parametrize('tokens,data,extra,message', [
     ('abc', 'Hello world', {},
-     {'registration_ids': ['abc'],
+     {'to': 'abc',
       'data': {'message': 'Hello world'}}),
     ('abc', {'message': 'Hello world'}, {'delay_while_idle': True,
                                          'time_to_live': 3600,
                                          'collapse_key': 'key',
                                          'restricted_package_name': 'name',
                                          'dry_run': True},
-     {'registration_ids': ['abc'],
+     {'to': 'abc',
       'data': {'message': 'Hello world'},
       'delay_while_idle': True,
       'time_to_live': 3600,
@@ -42,7 +42,7 @@ from .fixtures import (
                  'key1': 'value1',
                  'key2': {'key2_': 'value2_0'}}},
      {},
-     {'registration_ids': ['abc'],
+     {'to': 'abc',
       'data': {'message': 'Hello world',
                'custom': {'key0': ['value0_0'],
                           'key1': 'value1',
@@ -156,14 +156,14 @@ def test_gcm_invalid_api_key(gcm_client):
      mock.call().headers.update({'Authorization': 'key=1234',
                                  'Content-Type': 'application/json'}),
      mock.call().post('https://android.googleapis.com/gcm/send',
-                      b'{"data":{},"registration_ids":["abc"]}')),
+                      b'{"data":{},"to":"abc"}')),
     (['abc'],
      {},
      {},
      mock.call().headers.update({'Authorization': 'key=1234',
                                  'Content-Type': 'application/json'}),
      mock.call().post('https://android.googleapis.com/gcm/send',
-                      b'{"data":{},"registration_ids":["abc"]}'))
+                      b'{"data":{},"to":"abc"}'))
 ])
 def test_gcm_connection_call(gcm_client, tokens, data, extra, auth, expected):
     with mock.patch('requests.Session') as Session:

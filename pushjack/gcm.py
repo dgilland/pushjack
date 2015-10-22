@@ -190,13 +190,21 @@ class GCMMessageStream(object):
     def __iter__(self):
         """Iterate through and yield chunked messages."""
         message = self.message.to_dict()
+        del message['registration_ids']
 
         for ids in chunk(self.message.registration_ids, GCM_MAX_RECIPIENTS):
             for id in ids:
                 log.debug(('Preparing notification for GCM id {0}'
                            .format(id)))
 
-            message['registration_ids'] = ids
+            if len(ids) > 1:
+                to_field = 'registration_ids'
+            else:
+                to_field = 'to'
+                ids = ids[0]
+
+            message[to_field] = ids
+
             yield json_dumps(message)
 
 
@@ -246,7 +254,14 @@ class GCMResponse(object):
                 message = None
 
             self.messages.append(message)
-            registration_ids = (message or {}).get('registration_ids', [])
+            message = message or {}
+
+            if 'registration_ids' in message:
+                registration_ids = message['registration_ids']
+            elif 'to' in message:
+                registration_ids = [message['to']]
+            else:
+                registration_ids = []
 
             if not registration_ids:
                 continue
