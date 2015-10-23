@@ -23,6 +23,7 @@ import requests
 
 from .utils import chunk, compact_dict, json_loads, json_dumps
 from .exceptions import GCMError, GCMAuthError, gcm_server_errors
+from ._compat import iteritems
 
 
 __all__ = (
@@ -65,9 +66,13 @@ class GCMClient(object):
 
         Args:
             ids (list): GCM device registration IDs.
-            message (str|dict): Message string or dictionary.
+            message (str|dict): Message string or dictionary. If ``message``
+                is a dict and contains the field ``notification``, then it will
+                be used for the ``notification`` payload.
 
         Keyword Args:
+            notificatoin (dict, optional): Notification payload. Can include
+                the fields ``body``, ``title``, and ``icon``.
             collapse_key (str, optional): Identifier for a group of messages
                 that can be collapsed so that only the last message gets sent
                 when delivery can be resumed. Defaults to ``None``.
@@ -147,6 +152,7 @@ class GCMMessage(object):
     def __init__(self,
                  registration_ids,
                  message,
+                 notification=None,
                  collapse_key=None,
                  delay_while_idle=None,
                  time_to_live=None,
@@ -159,13 +165,33 @@ class GCMMessage(object):
         self.time_to_live = time_to_live
         self.restricted_package_name = restricted_package_name
         self.dry_run = dry_run
+        self.notification = notification
+        self.data = {}
+
+        self._parse_message()
+
+    def _parse_message(self):
+        """Parse and filter :attr:`message` to set :attr:`data` and
+        :attr:`notification`.
+        """
+        if not isinstance(self.message, dict):
+            self.data['message'] = self.message
+        else:
+            if 'notification' in self.message:
+                self.notification = self.message['notification']
+
+            self.message = dict((key, value)
+                                for key, value in iteritems(self.message)
+                                if key not in ('notification',))
+
+            self.data.update(self.message)
 
     def to_dict(self):
         """Return message as dictionary."""
         return compact_dict({
             'registration_ids': self.registration_ids,
-            'data': (self.message if isinstance(self.message, dict)
-                     else {'message': self.message}),
+            'notification': self.notification,
+            'data': self.data,
             'collapse_key': self.collapse_key,
             'delay_while_idle': self.delay_while_idle,
             'time_to_live': self.time_to_live,

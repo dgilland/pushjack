@@ -49,7 +49,7 @@ Send notifications using the ``APNSClient`` class:
     alert = 'Hello world.'
 
     # Send to single device.
-    # Keyword arguments are optional.
+    # NOTE: Keyword arguments are optional.
     res = client.send(token,
                       alert,
                       badge='badge count',
@@ -113,14 +113,22 @@ Send notifications using the ``GCMClient`` class:
 
     registration_id = '<registration id>'
     alert = 'Hello world.'
+    notification = {'title': 'Title', 'body': 'Body', 'icon': 'icon'}
 
     # Send to single device.
-    # Keyword arguments are optional.
+    # NOTE: Keyword arguments are optional.
     res = client.send(registration_id,
-                      data,
+                      alert,
+                      notification=notification,
                       collapse_key='collapse_key',
                       delay_while_idle=True,
                       time_to_live=604800)
+
+    # Alert can also be be a dictionary with data fields.
+    alert = {'message': 'Hello world', 'custom_field': 'Custom Data'}
+
+    # Alert can also contain the notification payload.
+    alert = {'message': 'Hello world', 'notification': notification}
 
     # List of requests.Response objects from GCM Server.
     res.responses
