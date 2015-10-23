@@ -4,7 +4,7 @@ Changelog
 =========
 
 
-vX.X.X (XXXX-XX-XX)
+v1.1.0 (2015-10-22)
 -------------------
 
 - Add support for ``notification`` field to GCM messages. [``GCM``]
