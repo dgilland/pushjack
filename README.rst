@@ -68,21 +68,17 @@ Send notifications using the ``APNSClient`` class:
     client.send([token], alert, **options)
 
 
-Get a list of all tokens sent.
+Access response data.
 
 .. code-block:: python
 
+    # List of all tokens sent.
     res.tokens
 
-
-Get a list or dict of any subclassed APNSServerError objects.
-
-.. code-block:: python
-
-    # List of APNSServerError objects
+    # List of errors as APNSServerError objects
     res.errors
 
-    # Dict mapping token => APNSServerError object.
+    # Dict mapping errors as token => APNSServerError object.
     res.token_errors
 
 
