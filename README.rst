@@ -64,30 +64,58 @@ Send notifications using the ``APNSClient`` class:
                       launch_image='path/to/image.jpg',
                       extra={'custom': 'data'})
 
-    # List of all tokens sent.
-    res.tokens
-
-    # List of any subclassed APNSServerError objects.
-    res.errors
-
-    # Dict mapping token => APNSServerError.
-    res.token_errors
-
-
     # Send to multiple devices by passing a list of tokens.
     client.send([token], alert, **options)
 
-    # Override defaults for error_timeout, expiration_offset, and batch_size.
+
+Get a list of all tokens sent.
+
+.. code-block:: python
+
+    res.tokens
+
+
+Get a list or dict of any subclassed APNSServerError objects.
+
+.. code-block:: python
+
+    # List of APNSServerError objects
+    res.errors
+
+    # Dict mapping token => APNSServerError object.
+    res.token_errors
+
+
+Override defaults for error_timeout, expiration_offset, and batch_size.
+
+.. code-block:: python
+
     client.send(token,
                 alert,
                 expiration=int(time.time() + 604800),
                 error_timeout=5,
                 batch_size=200)
 
-    # Get expired tokens.
+
+Send a low priority message.
+
+.. code-block:: python
+
+    # The default is low_priority == False
+    client.send(token, alert, low_priority=True)
+
+
+Get expired tokens.
+
+.. code-block:: python
+
     expired_tokens = client.get_expired_tokens()
 
-    # Close APNS connection
+
+Close APNS connection.
+
+.. code-block:: python
+
     client.close()
 
 
@@ -124,11 +152,35 @@ Send notifications using the ``GCMClient`` class:
                       delay_while_idle=True,
                       time_to_live=604800)
 
-    # Alert can also be be a dictionary with data fields.
+    # Send to multiple devices by passing a list of ids.
+    client.send([registration_id], alert, **options)
+
+
+Alert can also be be a dictionary with data fields.
+
+.. code-block:: python
+
     alert = {'message': 'Hello world', 'custom_field': 'Custom Data'}
 
-    # Alert can also contain the notification payload.
+
+Alert can also contain the notification payload.
+
+.. code-block:: python
+
     alert = {'message': 'Hello world', 'notification': notification}
+
+
+Send a low priority message.
+
+.. code-block:: python
+
+    # The default is low_priority == False
+    client.send(registration_id, alert, low_priority=True)
+
+
+Access response data.
+
+.. code-block:: python
 
     # List of requests.Response objects from GCM Server.
     res.responses
@@ -153,10 +205,6 @@ Send notifications using the ``GCMClient`` class:
 
     # List of canonical ids (registration ids that have changed).
     res.canonical_ids
-
-
-    # Send to multiple devices by passing a list of ids.
-    client.send([registration_id], alert, **options)
 
 
 For more details, please see the full documentation at http://pushjack.readthedocs.org.

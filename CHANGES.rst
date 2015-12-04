@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+- Add support for ``priority`` field to GCM messages via ``low_priority`` keyword argument. Default behavior is for all messages to be ``"high"`` priority. This is the opposite of GCM messages but mirrors the behavior in the APNS module where the default priority is ``"high"``. [``GCM``]
+
+
 v1.1.0 (2015-10-22)
 -------------------
 

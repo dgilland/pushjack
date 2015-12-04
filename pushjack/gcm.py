@@ -41,6 +41,17 @@ GCM_URL = 'https://android.googleapis.com/gcm/send'
 # GCM only allows up to 1000 reg ids per bulk message.
 GCM_MAX_RECIPIENTS = 1000
 
+#: Indicates that the push message should be sent with low priority. Low
+#: priority optimizes the client app's battery consumption, and should be used
+#: unless immediate delivery is required. For messages with low priority, the
+#: app may receive the message with unspecified delay.
+GCM_LOW_PRIORITY = 'normal'
+
+#: Indicates that the push message should be sent with a high priority. When a
+#: message is sent with high priority, it is sent immediately, and the app can
+#: wake a sleeping device and open a network connection to your server.
+GCM_HIGH_PRIORITY = 'high'
+
 
 class GCMClient(object):
     """GCM client class."""
@@ -82,6 +93,8 @@ class GCMClient(object):
                 should be kept in GCM storage if the device is offline. The
                 maximum time to live supported is 4 weeks. Defaults to ``None``
                 which uses the GCM default of 4 weeks.
+            low_priority (boolean, optional): Whether to send notification with
+                the low priority flag. Defaults to ``False``.
             restricted_package_name (str, optional): Package name of the
                 application where the registration IDs must match in order to
                 receive the message. Defaults to ``None``.
@@ -100,6 +113,9 @@ class GCMClient(object):
         .. versionchanged:: 0.4.0
             - Added support for bulk sending.
             - Removed `request` argument.
+
+        .. versionchanged:: 1.2.0
+            - Added ``low_priority`` argument.
         """
         if not self.api_key:
             raise GCMAuthError('Missing GCM API key.')
@@ -157,6 +173,7 @@ class GCMMessage(object):
                  delay_while_idle=None,
                  time_to_live=None,
                  restricted_package_name=None,
+                 low_priority=None,
                  dry_run=None):
         self.registration_ids = registration_ids
         self.message = message
@@ -167,6 +184,11 @@ class GCMMessage(object):
         self.dry_run = dry_run
         self.notification = notification
         self.data = {}
+
+        if low_priority:
+            self.priority = None
+        else:
+            self.priority = GCM_HIGH_PRIORITY
 
         self._parse_message()
 
@@ -195,6 +217,7 @@ class GCMMessage(object):
             'collapse_key': self.collapse_key,
             'delay_while_idle': self.delay_while_idle,
             'time_to_live': self.time_to_live,
+            'priority': self.priority,
             'restricted_package_name': self.restricted_package_name,
             'dry_run': True if self.dry_run else None
         })
