@@ -501,10 +501,6 @@ class APNSMessage(object):
             'content-available': 1 if self.content_available else None
         })
 
-        if not message['aps']:
-            # Don't include 'aps' field if empty.
-            del message['aps']
-
         return message
 
     def to_json(self):
