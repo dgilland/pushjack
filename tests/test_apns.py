@@ -179,7 +179,6 @@ def test_apns_socket_write(apns_client, apns_socket):
 
 @parametrize('exception,alert', [
     (exceptions.APNSInvalidPayloadSizeError, '_' * 2049),
-    (exceptions.APNSMissingPayloadError, None)
 ])
 def test_apns_invalid_payload_size(apns_client, exception, alert):
     with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
