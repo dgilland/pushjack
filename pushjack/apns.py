@@ -501,10 +501,6 @@ class APNSMessage(object):
             'content-available': 1 if self.content_available else None
         })
 
-        if not message['aps']:
-            # Don't include 'aps' field if empty.
-            del message['aps']
-
         return message
 
     def to_json(self):
@@ -513,11 +509,7 @@ class APNSMessage(object):
 
     def __len__(self):
         """Return length of serialized message."""
-        if not self.to_dict():
-            # Consider message length 0 if there is no message data.
-            return 0
-        else:
-            return len(self.to_json())
+        return len(self.to_json())
 
 
 class APNSMessageStream(object):
@@ -767,9 +759,6 @@ def validate_tokens(tokens):
 
 def validate_message(message):
     """Check whether `message` is valid."""
-    if len(message) == 0:
-        raise APNSMissingPayloadError('Notification body size cannot be 0')
-
     if len(message) > APNS_MAX_NOTIFICATION_SIZE:
         raise APNSInvalidPayloadSizeError(
             ('Notification body cannot exceed '
