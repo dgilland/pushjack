@@ -4,6 +4,12 @@ Changelog
 =========
 
 
+v1.2.1 (2015-12-14)
+-------------------
+
+- Fix implementation of empty APNS notifications and allow notifications with ``{"aps": {}}`` to be sent. Thanks `Julius Seporaitis`_! [``APNS``]
+
+
 v1.2.0 (2015-12-04)
 -------------------
 
@@ -134,3 +140,4 @@ v0.0.1 (2015-03-25)
 
 
 .. _Brad Montgomery: https://github.com/bradmontgomery
+.. _Julius Seporaitis: https://github.com/seporaitis
