@@ -217,3 +217,8 @@ For more details, please see the full documentation at http://pushjack.readthedo
 
 .. |license| image:: http://img.shields.io/pypi/l/pushjack.svg?style=flat-square
     :target: https://pypi.python.org/pypi/pushjack/
+
+
+.. image:: https://badges.gitter.im/dgilland/pushjack.svg
+   :alt: Join the chat at https://gitter.im/dgilland/pushjack
+   :target: https://gitter.im/dgilland/pushjack?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
