@@ -6,7 +6,7 @@ Push notifications for APNS (iOS) and GCM (Android).
 
 Project: https://github.com/dgilland/pushjack
 
-Documentation: http://pushjack.readthedocs.org/
+Documentation: https://pushjack.readthedocs.io/
 """
 
 import os
