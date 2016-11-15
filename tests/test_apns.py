@@ -201,7 +201,7 @@ def test_apns_invalid_payload_size(apns_client, exception, alert):
     (255, exceptions.APNSUnknownError),
 ])
 def test_apns_error_handling(apns_client, code, exception):
-    with apns_create_error_socket(code) as create_socket:
+    with apns_create_error_socket(code):
         res = apns_client.send(apns_tokens(1), 'foo')
         assert isinstance(res.errors[0], exception)
 
@@ -231,7 +231,7 @@ def test_apns_create_socket(tmpdir):
     with mock.patch('ssl.wrap_socket') as wrap_socket:
         wrap_socket.do_handshake = lambda: True
 
-        sock = apns.create_socket(TCP_HOST, TCP_PORT, str(certificate))
+        apns.create_socket(TCP_HOST, TCP_PORT, str(certificate))
 
         assert wrap_socket.called
 

@@ -616,8 +616,8 @@ class APNSFeedbackStream(object):
         header_format = '!LH'
         buff = b''
 
-        for chunk in self.conn.readchunks(4096):
-            buff += chunk
+        for chnk in self.conn.readchunks(4096):
+            buff += chnk
 
             if not buff:
                 break
@@ -664,9 +664,9 @@ class APNSResponse(object):
         self.token_errors = {}
 
         for err in errors:
-            token = tokens[err.identifier]
-            self.failures.append(token)
-            self.token_errors[token] = err
+            tok = tokens[err.identifier]
+            self.failures.append(tok)
+            self.token_errors[tok] = err
 
         self.successes = [token for token in tokens
                           if token not in self.failures]
