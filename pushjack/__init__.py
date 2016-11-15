@@ -2,9 +2,8 @@
 """Pushjack module.
 """
 
-from .__meta__ import (
-    __title__,
-    __summary__,
+from .__pkg__ import (
+    __description__,
     __url__,
     __version__,
     __author__,
