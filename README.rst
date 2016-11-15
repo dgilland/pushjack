@@ -11,7 +11,7 @@ Links
 =====
 
 - Project: https://github.com/dgilland/pushjack
-- Documentation: http://pushjack.readthedocs.org
+- Documentation: https://pushjack.readthedocs.io
 - PyPi: https://pypi.python.org/pypi/pushjack/
 - TravisCI: https://travis-ci.org/dgilland/pushjack
 
@@ -203,7 +203,7 @@ Access response data.
     res.canonical_ids
 
 
-For more details, please see the full documentation at http://pushjack.readthedocs.org.
+For more details, please see the full documentation at https://pushjack.readthedocs.io.
 
 
 .. |version| image:: http://img.shields.io/pypi/v/pushjack.svg?style=flat-square
