@@ -204,7 +204,7 @@ To enable logging using a configuration approach:
         }
     })
 
-For additional configuration options, you may wish to install `logconfig <http://logconfig.readthedocs.org/>`_:
+For additional configuration options, you may wish to install `logconfig <https://logconfig.readthedocs.io/>`_:
 
 ::
 
