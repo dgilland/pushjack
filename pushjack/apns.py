@@ -251,7 +251,9 @@ class APNSClient(object):
         """
         log.debug('Preparing to check for expired APNS tokens.')
 
-        tokens = list(APNSFeedbackStream(self.create_feedback_connection()))
+        conn = self.create_feedback_connection()
+        tokens = list(APNSFeedbackStream(conn))
+        conn.close()
 
         log.debug('Received {0} expired APNS tokens.'.format(len(tokens)))
 
