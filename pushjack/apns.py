@@ -478,14 +478,6 @@ class APNSMessage(object):
         self.thread_id = thread_id
         self.extra = extra
 
-    def to_json(self):
-        """Return message as JSON string."""
-        return json_dumps(self.to_dict())
-
-    def __len__(self):
-        """Return length of serialized message."""
-        return len(self.to_json())
-
     def to_dict(self):
         """Return message as dictionary."""
         message = {}
