@@ -459,7 +459,7 @@ class APNSMessage(object):
                  extra=None):
         """
         First 8 attributes are keys of the Alert dict in the APS dictionary.
-        From badge to thread_id attributes are other keys of the APS dictionary.
+        From badge to thread_id are other keys of the APS dictionary.
         """
         self.title = title
         self.body = body
@@ -525,8 +525,10 @@ class APNSMessage(object):
                 'thread-id': self.thread_id
             })
         else:
-            # For silent notifications: APS dictionary must not contain alert, badge nor sound keys.
-            # Alert removed from here. Badge and sound should not be set by user
+            # For silent notifications: 
+            # APS dictionary must not contain alert, badge nor sound keys.
+            # Alert removed from here. 
+            # Badge and sound should not be set by user.
             message['aps'] = compact_dict({
                 'badge': self.badge,
                 'sound': self.sound,
@@ -546,7 +548,7 @@ class APNSMessage(object):
         """Return length of serialized message."""
         return len(self.to_json())
 
-    
+
 class APNSMessageStream(object):
     """Iterable object that yields a binary APNS socket frame for each device
     token.
