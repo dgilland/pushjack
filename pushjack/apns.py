@@ -129,7 +129,6 @@ class APNSClient(object):
 
     def send(self,
              ids,
-             message,
              expiration=None,
              low_priority=None,
              batch_size=None,
@@ -140,8 +139,9 @@ class APNSClient(object):
         Args:
             ids (list): APNS device tokens. Each item is expected to be a 64
                 character hex string.
-            message (str|dict): Message string or APS dictionary. Set to
-                ``None`` to send an empty alert notification.
+
+            ## Removed message argument to be set by **options ##
+
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -213,7 +213,7 @@ class APNSClient(object):
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
 
-        message = APNSMessage(message, **options)
+        message = APNSMessage(**options)
 
         validate_tokens(ids)
         validate_message(message)
@@ -437,40 +437,60 @@ class APNSConnection(object):
 
 
 class APNSMessage(object):
-    """APNS message object that serializes to JSON."""
+    """
+    APNs message object that serializes to JSON.
+    Reordered and message replaced with body.
+    """
     def __init__(self,
-                 message=None,
-                 badge=None,
-                 sound=None,
-                 category=None,
-                 content_available=None,
                  title=None,
+                 body=None,
                  title_loc_key=None,
                  title_loc_args=None,
                  action_loc_key=None,
                  loc_key=None,
                  loc_args=None,
                  launch_image=None,
+                 badge=None,
+                 sound=None,
+                 content_available=None,
+                 mutable_content=None,      # New for Notification Service Extension iOS 10
+                 category=None,
+                 thread_id=None,
                  extra=None):
-        self.message = message
-        self.badge = badge
-        self.sound = sound
-        self.category = category
-        self.content_available = content_available
+        """
+        First 8 attributes are keys of the Alert dict in the APS dictionary.
+        From badge to thread_id attributes are other keys of the APS dictionary.
+        """
         self.title = title
+        self.body = body
         self.title_loc_key = title_loc_key
         self.title_loc_args = title_loc_args
         self.action_loc_key = action_loc_key
         self.loc_key = loc_key
         self.loc_args = loc_args
         self.launch_image = launch_image
+        self.badge = badge
+        self.sound = sound
+        self.content_available = content_available
+        self.mutable_content = mutable_content
+        self.category = category
+        self.thread_id = thread_id
         self.extra = extra
+
+    def to_json(self):
+        """Return message as JSON string."""
+        return json_dumps(self.to_dict())
+
+    def __len__(self):
+        """Return length of serialized message."""
+        return len(self.to_json())
 
     def to_dict(self):
         """Return message as dictionary."""
         message = {}
 
         if any([self.title,
+                self.body,
                 self.title_loc_key,
                 self.title_loc_args,
                 self.action_loc_key,
@@ -478,8 +498,8 @@ class APNSMessage(object):
                 self.loc_args,
                 self.launch_image]):
             alert = {
-                'body': self.message,
                 'title': self.title,
+                'body': self.body,
                 'title-loc-key': self.title_loc_key,
                 'title-loc-args': self.title_loc_args,
                 'action-loc-key': self.action_loc_key,
@@ -490,16 +510,31 @@ class APNSMessage(object):
 
             alert = compact_dict(alert)
         else:
-            alert = self.message
+            alert = {}
 
         message.update(self.extra or {})
-        message['aps'] = compact_dict({
-            'alert': alert,
-            'badge': self.badge,
-            'sound': self.sound,
-            'category': self.category,
-            'content-available': 1 if self.content_available else None
-        })
+
+        if alert:
+            message['aps'] = compact_dict({
+                'alert': alert,
+                'badge': self.badge,
+                'sound': self.sound,
+                'content-available': 1 if self.content_available else None,
+                'mutable-content': 1 if self.mutable_content else None,
+                'category': self.category,
+                'thread-id': self.thread_id
+            })
+        else:
+            # For silent notifications: APS dictionary must not contain alert, badge nor sound keys.
+            # Alert removed from here. Badge and sound should not be set by user
+            message['aps'] = compact_dict({
+                'badge': self.badge,
+                'sound': self.sound,
+                'content-available': 1 if self.content_available else None,
+                'mutable-content': 1 if self.mutable_content else None,
+                'category': self.category,
+                'thread-id': self.thread_id
+            })
 
         return message
 
@@ -511,7 +546,7 @@ class APNSMessage(object):
         """Return length of serialized message."""
         return len(self.to_json())
 
-
+    
 class APNSMessageStream(object):
     """Iterable object that yields a binary APNS socket frame for each device
     token.
