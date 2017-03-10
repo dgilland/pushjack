@@ -218,7 +218,7 @@ class APNSClient(object):
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
 
-        message = APNSMessage(**options)
+        message = APNSMessage(message, **options)
 
         validate_tokens(ids)
         validate_message(message)
