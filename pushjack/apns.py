@@ -129,6 +129,7 @@ class APNSClient(object):
 
     def send(self,
              ids,
+             message=None,
              expiration=None,
              low_priority=None,
              batch_size=None,
@@ -139,9 +140,8 @@ class APNSClient(object):
         Args:
             ids (list): APNS device tokens. Each item is expected to be a 64
                 character hex string.
-
-            ## Removed message argument to be set by **options ##
-
+            message (str|dict): Message string or APS dictionary. Set to
+                ``None`` to send an empty alert notification.
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -175,6 +175,11 @@ class APNSClient(object):
             launch_image (str, optional): The filename of an image file in the
                 app bundle; it may include the extension or omit it.
             extra (dict, optional): Extra data to include with the alert.
+            mutable_content (bool, optional): if ``True``, triggers Apple
+                Notification Service Extension. Defaults to ``None``.
+            thread_id (str, optional): identifier for grouping notifications.
+                iOS groups notifications with with the same thread identifier
+                together in Notification Center.
 
         Returns:
             :class:`APNSResponse`: Response from APNS containing tokens sent
@@ -442,48 +447,42 @@ class APNSMessage(object):
     Reordered and message replaced with body.
     """
     def __init__(self,
+                 message=None,
+                 badge=None,
+                 sound=None,
+                 category=None,
+                 content_available=None,
                  title=None,
-                 body=None,
                  title_loc_key=None,
                  title_loc_args=None,
                  action_loc_key=None,
                  loc_key=None,
                  loc_args=None,
                  launch_image=None,
-                 badge=None,
-                 sound=None,
-                 content_available=None,
-                 # New for Notification Service Extension iOS 10
+                 extra=None,
                  mutable_content=None,
-                 category=None,
-                 thread_id=None,
-                 extra=None):
-        """
-        First 8 attributes are keys of the Alert dict in the APS dictionary.
-        From badge to thread_id are other keys of the APS dictionary.
-        """
+                 thread_id=None):
+        self.message = message
+        self.badge = badge
+        self.sound = sound
+        self.category = category
+        self.content_available = content_available
         self.title = title
-        self.body = body
         self.title_loc_key = title_loc_key
         self.title_loc_args = title_loc_args
         self.action_loc_key = action_loc_key
         self.loc_key = loc_key
         self.loc_args = loc_args
         self.launch_image = launch_image
-        self.badge = badge
-        self.sound = sound
-        self.content_available = content_available
-        self.mutable_content = mutable_content
-        self.category = category
-        self.thread_id = thread_id
         self.extra = extra
+        self.mutable_content = mutable_content
+        self.thread_id = thread_id
 
     def to_dict(self):
         """Return message as dictionary."""
         message = {}
 
         if any([self.title,
-                self.body,
                 self.title_loc_key,
                 self.title_loc_args,
                 self.action_loc_key,
@@ -491,8 +490,8 @@ class APNSMessage(object):
                 self.loc_args,
                 self.launch_image]):
             alert = {
+                'body': self.message,
                 'title': self.title,
-                'body': self.body,
                 'title-loc-key': self.title_loc_key,
                 'title-loc-args': self.title_loc_args,
                 'action-loc-key': self.action_loc_key,
@@ -503,33 +502,18 @@ class APNSMessage(object):
 
             alert = compact_dict(alert)
         else:
-            alert = {}
+            alert = self.message
 
         message.update(self.extra or {})
-
-        if alert:
-            message['aps'] = compact_dict({
-                'alert': alert,
-                'badge': self.badge,
-                'sound': self.sound,
-                'content-available': 1 if self.content_available else None,
-                'mutable-content': 1 if self.mutable_content else None,
-                'category': self.category,
-                'thread-id': self.thread_id
-            })
-        else:
-            # For silent notifications:
-            # APS dictionary must not contain alert, badge nor sound keys.
-            # Alert removed from here.
-            # Badge and sound should not be set by user.
-            message['aps'] = compact_dict({
-                'badge': self.badge,
-                'sound': self.sound,
-                'content-available': 1 if self.content_available else None,
-                'mutable-content': 1 if self.mutable_content else None,
-                'category': self.category,
-                'thread-id': self.thread_id
-            })
+        message['aps'] = compact_dict({
+            'alert': alert,
+            'badge': self.badge,
+            'sound': self.sound,
+            'category': self.category,
+            'content-available': 1 if self.content_available else None,
+            'mutable-content': 1 if self.mutable_content else None,
+            'thread-id': self.thread_id
+        })
 
         return message
 
