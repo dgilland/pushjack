@@ -453,7 +453,8 @@ class APNSMessage(object):
                  badge=None,
                  sound=None,
                  content_available=None,
-                 mutable_content=None,      # New for Notification Service Extension iOS 10
+                 # New for Notification Service Extension iOS 10
+                 mutable_content=None,
                  category=None,
                  thread_id=None,
                  extra=None):
@@ -525,9 +526,9 @@ class APNSMessage(object):
                 'thread-id': self.thread_id
             })
         else:
-            # For silent notifications: 
+            # For silent notifications:
             # APS dictionary must not contain alert, badge nor sound keys.
-            # Alert removed from here. 
+            # Alert removed from here.
             # Badge and sound should not be set by user.
             message['aps'] = compact_dict({
                 'badge': self.badge,
