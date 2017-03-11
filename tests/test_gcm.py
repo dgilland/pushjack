@@ -174,7 +174,7 @@ def test_gcm_response(gcm_client, tokens, status_code, results, expected):
 
 def test_gcm_invalid_api_key(gcm_client):
     gcm_client.api_key = None
-    with pytest.raises(GCMError) as exc_info:
+    with pytest.raises(GCMError):
         gcm_client.send('abc', {})
 
 

@@ -117,7 +117,7 @@ def apns_tokens(num=1):
     return tokens[0] if num == 1 else tokens
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def apns_socket():
     with mock.patch('pushjack.apns.create_socket') as create_socket:
         sock = apns_socket_factory(TCP_CONNECT)

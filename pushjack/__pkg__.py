@@ -2,15 +2,10 @@
 """Define project metadata
 """
 
-__title__ = 'pushjack'
-__summary__ = 'Push notifications for APNS (iOS) and GCM (Android).'
+__package_name__ = 'pushjack'
+__description__ = 'Push notifications for APNS (iOS) and GCM (Android).'
 __url__ = 'https://github.com/dgilland/pushjack'
-
-__version__ = '1.2.1'
-
-__install_requires__ = ['requests']
-
+__version__ = '1.3.0-dev'
 __author__ = 'Derrick Gilland'
 __email__ = 'dgilland@gmail.com'
-
 __license__ = 'MIT License'

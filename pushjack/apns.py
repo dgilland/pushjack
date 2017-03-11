@@ -256,7 +256,9 @@ class APNSClient(object):
         """
         log.debug('Preparing to check for expired APNS tokens.')
 
-        tokens = list(APNSFeedbackStream(self.create_feedback_connection()))
+        conn = self.create_feedback_connection()
+        tokens = list(APNSFeedbackStream(conn))
+        conn.close()
 
         log.debug('Received {0} expired APNS tokens.'.format(len(tokens)))
 
@@ -343,17 +345,6 @@ class APNSConnection(object):
                 break
 
         return data
-
-    def readchunks(self, buffsize, timeout=10):
-        """Return stream of socket data in chunks <= `buffsize` until no more
-        data found.
-        """
-        while True:
-            data = self.read(buffsize, timeout)
-            yield data
-
-            if not data:  # pragma: no cover
-                break
 
     def write(self, data, timeout=10):
         """Write data to socket."""
@@ -628,31 +619,21 @@ class APNSFeedbackStream(object):
     def __iter__(self):
         """Iterate through and yield expired device tokens."""
         header_format = '!LH'
-        buff = b''
 
-        for chunk in self.conn.readchunks(4096):
-            buff += chunk
+        while True:
+            data = self.conn.read(APNS_FEEDBACK_HEADER_LEN)
 
-            if not buff:
+            if not data:
                 break
 
-            if len(buff) < APNS_FEEDBACK_HEADER_LEN:  # pragma: no cover
-                break
+            timestamp, token_len = struct.unpack(header_format, data)
+            token_data = self.conn.read(token_len)
 
-            while len(buff) > APNS_FEEDBACK_HEADER_LEN:
-                timestamp, token_len = struct.unpack(header_format, buff[:6])
-                bytes_to_read = APNS_FEEDBACK_HEADER_LEN + token_len
+            if token_data:
+                token = struct.unpack('{0}s'.format(token_len), token_data)
+                token = hexlify(token[0]).decode('utf8')
 
-                if len(buff) >= bytes_to_read:
-                    token = struct.unpack('{0}s'.format(token_len),
-                                          buff[6:bytes_to_read])
-                    token = hexlify(token[0]).decode('utf8')
-
-                    yield APNSExpiredToken(token, timestamp)
-
-                    buff = buff[bytes_to_read:]
-                else:  # pragma: no cover
-                    break
+                yield APNSExpiredToken(token, timestamp)
 
 
 class APNSResponse(object):
@@ -678,9 +659,9 @@ class APNSResponse(object):
         self.token_errors = {}
 
         for err in errors:
-            token = tokens[err.identifier]
-            self.failures.append(token)
-            self.token_errors[token] = err
+            tok = tokens[err.identifier]
+            self.failures.append(tok)
+            self.token_errors[tok] = err
 
         self.successes = [token for token in tokens
                           if token not in self.failures]
