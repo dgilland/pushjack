@@ -129,7 +129,7 @@ class APNSClient(object):
 
     def send(self,
              ids,
-             message,
+             message=None,
              expiration=None,
              low_priority=None,
              batch_size=None,
@@ -175,6 +175,11 @@ class APNSClient(object):
             launch_image (str, optional): The filename of an image file in the
                 app bundle; it may include the extension or omit it.
             extra (dict, optional): Extra data to include with the alert.
+            mutable_content (bool, optional): if ``True``, triggers Apple
+                Notification Service Extension. Defaults to ``None``.
+            thread_id (str, optional): identifier for grouping notifications.
+                iOS groups notifications with with the same thread identifier
+                together in Notification Center.
 
         Returns:
             :class:`APNSResponse`: Response from APNS containing tokens sent
@@ -437,7 +442,10 @@ class APNSConnection(object):
 
 
 class APNSMessage(object):
-    """APNS message object that serializes to JSON."""
+    """
+    APNs message object that serializes to JSON.
+    Reordered and message replaced with body.
+    """
     def __init__(self,
                  message=None,
                  badge=None,
@@ -451,7 +459,9 @@ class APNSMessage(object):
                  loc_key=None,
                  loc_args=None,
                  launch_image=None,
-                 extra=None):
+                 extra=None,
+                 mutable_content=None,
+                 thread_id=None):
         self.message = message
         self.badge = badge
         self.sound = sound
@@ -465,6 +475,8 @@ class APNSMessage(object):
         self.loc_args = loc_args
         self.launch_image = launch_image
         self.extra = extra
+        self.mutable_content = mutable_content
+        self.thread_id = thread_id
 
     def to_dict(self):
         """Return message as dictionary."""
@@ -498,7 +510,9 @@ class APNSMessage(object):
             'badge': self.badge,
             'sound': self.sound,
             'category': self.category,
-            'content-available': 1 if self.content_available else None
+            'content-available': 1 if self.content_available else None,
+            'mutable-content': 1 if self.mutable_content else None,
+            'thread-id': self.thread_id
         })
 
         return message
