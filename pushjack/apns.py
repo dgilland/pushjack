@@ -174,12 +174,12 @@ class APNSClient(object):
                 of the format specifiers in ``loc_key``.
             launch_image (str, optional): The filename of an image file in the
                 app bundle; it may include the extension or omit it.
-            extra (dict, optional): Extra data to include with the alert.
             mutable_content (bool, optional): if ``True``, triggers Apple
                 Notification Service Extension. Defaults to ``None``.
-            thread_id (str, optional): identifier for grouping notifications.
-                iOS groups notifications with with the same thread identifier
-                together in Notification Center.
+            thread_id (str, optional): Identifier for grouping notifications.
+                iOS groups notifications with the same thread identifier
+                together in Notification Center. Defaults to ``None``.
+            extra (dict, optional): Extra data to include with the alert.
 
         Returns:
             :class:`APNSResponse`: Response from APNS containing tokens sent
@@ -433,10 +433,7 @@ class APNSConnection(object):
 
 
 class APNSMessage(object):
-    """
-    APNs message object that serializes to JSON.
-    Reordered and message replaced with body.
-    """
+    """APNs message object that serializes to JSON."""
     def __init__(self,
                  message=None,
                  badge=None,
@@ -450,9 +447,9 @@ class APNSMessage(object):
                  loc_key=None,
                  loc_args=None,
                  launch_image=None,
-                 extra=None,
                  mutable_content=None,
-                 thread_id=None):
+                 thread_id=None,
+                 extra=None):
         self.message = message
         self.badge = badge
         self.sound = sound
@@ -465,9 +462,9 @@ class APNSMessage(object):
         self.loc_key = loc_key
         self.loc_args = loc_args
         self.launch_image = launch_image
-        self.extra = extra
         self.mutable_content = mutable_content
         self.thread_id = thread_id
+        self.extra = extra
 
     def to_dict(self):
         """Return message as dictionary."""
