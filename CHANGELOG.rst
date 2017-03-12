@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.3.0 (2017-03-11)
+-------------------
+
 - apns: Optimize reading from APNS Feedback so that the number of bytes read are based on header and token lengths.
 - apns: Explicitly close connection to APNS Feedback service after reading data.
 - apns: Add support for ``mutable-content`` field (Apple Notification Service Extension) via ``mutable_content`` argument to ``APNSClient.send()``. Thanks `Ahmed Khedr`_!
