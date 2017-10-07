@@ -18,7 +18,10 @@ __all__ = (
     'APNSInvalidPayloadSizeError',
     'APNSInvalidTokenError',
     'APNSShutdownError',
+    'APNSProtocolError',
     'APNSUnknownError',
+    'APNSTimeoutError',
+    'APNSUnsendableError',
     'GCMError',
     'GCMAuthError',
     'GCMServerError',
@@ -137,13 +140,25 @@ class APNSShutdownError(APNSServerError):
     description = 'Shutdown'
 
 
+class APNSProtocolError(APNSServerError):
+    """Exception for APNS protocol error."""
+    code = 128
+    description = 'Protocol'
+
+
 class APNSUnknownError(APNSServerError):
     """Exception for APNS unknown error."""
     code = 255
     description = 'Unknown'
 
 
-class APNSUnsendableError(APNSError):
+class APNSTimeoutError(APNSServerError):
+    """Exception for APNS connection timeout error."""
+    description = 'Timeout'
+    fatal = True
+
+
+class APNSUnsendableError(APNSServerError):
     """Exception for when notification can't be send due to previous error for
     another notification.
     """

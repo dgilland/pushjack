@@ -37,6 +37,7 @@ from .exceptions import (
     APNSInvalidPayloadSizeError,
     APNSMissingPayloadError,
     APNSServerError,
+    APNSTimeoutError,
     APNSUnsendableError,
     raise_apns_server_error
 )
@@ -374,7 +375,12 @@ class APNSConnection(object):
             # No error response.
             return
 
-        data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+        try:
+            data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+        except socket.error as ex:
+            log.error(('Could not read response: {0}.'.format(ex)))
+            self.close()
+            return
 
         if not data:  # pragma: no cover
             return
@@ -383,10 +389,7 @@ class APNSConnection(object):
 
         if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
             self.close()
-            raise APNSServerError(('Error response command must be {0}. '
-                                   'Found: {1}'
-                                   .format(APNS_ERROR_RESPONSE_COMMAND,
-                                           command)))
+            return
 
         code, identifier = struct.unpack('>BI', data[1:])
 
@@ -399,9 +402,25 @@ class APNSConnection(object):
 
     def send(self, frames):
         """Send stream of frames to APNS server."""
+        current_identifier = frames.next_identifier
         for frame in frames:
-            self.write(frame)
+            retries = 0
+            success = False
+            while not success and retries < 5:
+                try:
+                    self.write(frame)
+                    success = True
+                except socket.error as ex:
+                    log.error(('Could not send frame to server: {0}.'
+                               .format(ex)))
+                    self.close()
+                    retries += 1
+
+            if not success:
+                raise APNSTimeoutError(current_identifier)
+
             self.check_error(0)
+            current_identifier = frames.next_identifier
 
     def sendall(self, stream, error_timeout=10):
         """Send all notifications while handling errors. If an error occurs,
@@ -427,7 +446,7 @@ class APNSConnection(object):
                 if ex.fatal:
                     # We can't continue due to a fatal error. Go ahead and
                     # convert remaining notifications to errors.
-                    errors += [APNSUnsendableError(i + ex.identifier)
+                    errors += [APNSUnsendableError(i + stream.next_identifier)
                                for i, _ in enumerate(stream.peek())]
                     break
 
