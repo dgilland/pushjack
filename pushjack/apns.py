@@ -149,7 +149,7 @@ class APNSClient(object):
                 ``None`` to send an empty alert notification.
             max_payload_length (int, optional): The maximum length of the
                 payload to send. Message will be trimmed if the size is
-                exceeded. Defaults to ``None`` which uses
+                exceeded. Use 0 to turn off. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_MAX_PAYLOAD_LENGTH']``.
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
@@ -498,7 +498,7 @@ class APNSMessage(object):
         self.thread_id = thread_id
         self.extra = extra
 
-    def _construct_dict(self, message):
+    def _construct_dict(self, message=None):
         """Return message as dictionary, overriding message."""
         msg = {}
 
@@ -539,6 +539,9 @@ class APNSMessage(object):
 
     def to_dict(self):
         """Return message as dictionary."""
+        if self.message is None or self.max_payload_length == 0:
+            return self._construct_dict()
+
         message = self.message
         ending = ''
 
