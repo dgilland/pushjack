@@ -233,7 +233,9 @@ class APNSClient(object):
         if max_payload_length is None:
             max_payload_length = self.default_max_payload_length
 
-        message = APNSMessage(message, max_payload_length=max_payload_length, **options)
+        message = APNSMessage(message,
+                              max_payload_length=max_payload_length,
+                              **options)
 
         validate_tokens(ids)
         validate_message(message)
