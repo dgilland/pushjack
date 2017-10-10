@@ -546,9 +546,9 @@ class APNSMessage(object):
         ending = ''
 
         while True:
-            dict = self._construct_dict(message + ending)
-            if len(json_dumps(dict)) <= self.max_payload_length:
-                return dict
+            data = self._construct_dict(message + ending)
+            if len(json_dumps(data)) <= self.max_payload_length:
+                return data
             elif len(message) == 0:
                 return self._construct_dict()
             message = message[0:-1]
