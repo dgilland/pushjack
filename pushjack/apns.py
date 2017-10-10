@@ -61,10 +61,10 @@ APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
 APNS_FEEDBACK_SANDBOX_HOST = 'feedback.sandbox.push.apple.com'
 APNS_FEEDBACK_PORT = 2196
 
-APNS_DEFAULT_MAX_PAYLOAD_LENGTH = 2048
 APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
 APNS_DEFAULT_BATCH_SIZE = 100
 APNS_DEFAULT_ERROR_TIMEOUT = 10
+APNS_DEFAULT_MAX_PAYLOAD_LENGTH = 0
 
 # Constants derived from http://goo.gl/wFVr2S
 APNS_PUSH_COMMAND = 2
@@ -99,15 +99,15 @@ class APNSClient(object):
 
     def __init__(self,
                  certificate,
-                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH,
                  default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
                  default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
-                 default_batch_size=APNS_DEFAULT_BATCH_SIZE):
+                 default_batch_size=APNS_DEFAULT_BATCH_SIZE,
+                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH):
         self.certificate = certificate
-        self.default_max_payload_length = default_max_payload_length
         self.default_error_timeout = default_error_timeout
         self.default_expiration_offset = default_expiration_offset
         self.default_batch_size = default_batch_size
+        self.default_max_payload_length = default_max_payload_length
         self._conn = None
 
     @property
@@ -134,11 +134,11 @@ class APNSClient(object):
     def send(self,
              ids,
              message=None,
-             max_payload_length=None,
              expiration=None,
              low_priority=None,
              batch_size=None,
              error_timeout=None,
+             max_payload_length=None,
              **options):
         """Send push notification to single or multiple recipients.
 
@@ -147,10 +147,6 @@ class APNSClient(object):
                 character hex string.
             message (str|dict): Message string or APS dictionary. Set to
                 ``None`` to send an empty alert notification.
-            max_payload_length (int, optional): The maximum length of the
-                payload to send. Message will be trimmed if the size is
-                exceeded. Use 0 to turn off. Defaults to ``None`` which uses
-                ``config['APNS_DEFAULT_MAX_PAYLOAD_LENGTH']``.
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
@@ -159,6 +155,13 @@ class APNSClient(object):
             batch_size (int, optional): Number of notifications to group
                 together when sending. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_BATCH_SIZE']``.
+            error_timeout (int, optional): Time in seconds to wait for the
+                error response after sending messages. Defaults to ``None``
+                which uses ``config['APNS_DEFAULT_ERROR_TIMEOUT']``.
+            max_payload_length (int, optional): The maximum length of the
+                payload to send. Message will be trimmed if the size is
+                exceeded. Use 0 to turn off. Defaults to ``None`` which uses
+                ``config['APNS_DEFAULT_MAX_PAYLOAD_LENGTH']``.
 
         Keyword Args:
             badge (int, optional): Badge number count for alert. Defaults to
@@ -230,7 +233,7 @@ class APNSClient(object):
         if max_payload_length is None:
             max_payload_length = self.default_max_payload_length
 
-        message = APNSMessage(message, max_payload_length, **options)
+        message = APNSMessage(message, max_payload_length=max_payload_length, **options)
 
         validate_tokens(ids)
         validate_message(message)
@@ -466,7 +469,6 @@ class APNSMessage(object):
     """APNs message object that serializes to JSON."""
     def __init__(self,
                  message=None,
-                 max_payload_length=None,
                  badge=None,
                  sound=None,
                  category=None,
@@ -480,9 +482,9 @@ class APNSMessage(object):
                  launch_image=None,
                  mutable_content=None,
                  thread_id=None,
-                 extra=None):
+                 extra=None,
+                 max_payload_length=None):
         self.message = message
-        self.max_payload_length = max_payload_length
         self.badge = badge
         self.sound = sound
         self.category = category
@@ -497,6 +499,7 @@ class APNSMessage(object):
         self.mutable_content = mutable_content
         self.thread_id = thread_id
         self.extra = extra
+        self.max_payload_length = max_payload_length
 
     def _construct_dict(self, message=None):
         """Return message as dictionary, overriding message."""

@@ -183,7 +183,7 @@ def test_apns_socket_write(apns_client, apns_socket):
 def test_apns_invalid_payload_size(apns_client, exception, alert):
     with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
         with pytest.raises(exception):
-            apns_client.send(apns_tokens(1), alert, max_payload_length=0)
+            apns_client.send(apns_tokens(1), alert)
 
         assert not pack_frame.called
 
