@@ -540,11 +540,8 @@ class APNSMessage(object):
 
         return msg
 
-    def to_dict(self):
-        """Return message as dictionary."""
-        if self.message is None or not self.max_payload_length:
-            return self._construct_dict(self.message)
-
+    def _construct_truncated_dict(self):
+        """Return truncated message as dictionary."""
         message = self.message
         ending = ''
 
@@ -556,6 +553,13 @@ class APNSMessage(object):
                 return self._construct_dict()
             message = message[0:-1]
             ending = '...'
+
+    def to_dict(self):
+        """Return message as dictionary, truncating if needed."""
+        if self.message and self.max_payload_length:
+            return self._construct_truncated_dict()
+
+        return self._construct_dict(self.message)
 
     def to_json(self):
         """Return message as JSON string."""
