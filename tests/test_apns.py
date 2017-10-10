@@ -188,6 +188,16 @@ def test_apns_invalid_payload_size(apns_client, exception, alert):
         assert not pack_frame.called
 
 
+@parametrize('alert', [
+    ('_' * 2049),
+])
+def test_apns_max_payload_length(apns_client, apns_socket, alert):
+    with mock.patch('pushjack.apns.APNSMessageStream.pack') as pack_frame:
+        apns_client.send(apns_tokens(1), alert, max_payload_length=2048)
+        assert pack_frame.called
+        apns_client.close()
+
+
 @parametrize('code,exception', [
     (1, exceptions.APNSProcessingError),
     (2, exceptions.APNSMissingTokenError),
