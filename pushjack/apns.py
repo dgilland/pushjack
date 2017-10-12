@@ -37,6 +37,7 @@ from .exceptions import (
     APNSInvalidPayloadSizeError,
     APNSMissingPayloadError,
     APNSServerError,
+    APNSTimeoutError,
     APNSUnsendableError,
     raise_apns_server_error
 )
@@ -63,6 +64,7 @@ APNS_FEEDBACK_PORT = 2196
 APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
 APNS_DEFAULT_BATCH_SIZE = 100
 APNS_DEFAULT_ERROR_TIMEOUT = 10
+APNS_DEFAULT_MAX_PAYLOAD_LENGTH = 0
 
 # Constants derived from http://goo.gl/wFVr2S
 APNS_PUSH_COMMAND = 2
@@ -99,11 +101,13 @@ class APNSClient(object):
                  certificate,
                  default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
                  default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
-                 default_batch_size=APNS_DEFAULT_BATCH_SIZE):
+                 default_batch_size=APNS_DEFAULT_BATCH_SIZE,
+                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH):
         self.certificate = certificate
         self.default_error_timeout = default_error_timeout
         self.default_expiration_offset = default_expiration_offset
         self.default_batch_size = default_batch_size
+        self.default_max_payload_length = default_max_payload_length
         self._conn = None
 
     @property
@@ -134,6 +138,7 @@ class APNSClient(object):
              low_priority=None,
              batch_size=None,
              error_timeout=None,
+             max_payload_length=None,
              **options):
         """Send push notification to single or multiple recipients.
 
@@ -150,6 +155,13 @@ class APNSClient(object):
             batch_size (int, optional): Number of notifications to group
                 together when sending. Defaults to ``None`` which uses
                 ``config['APNS_DEFAULT_BATCH_SIZE']``.
+            error_timeout (int, optional): Time in seconds to wait for the
+                error response after sending messages. Defaults to ``None``
+                which uses ``config['APNS_DEFAULT_ERROR_TIMEOUT']``.
+            max_payload_length (int, optional): The maximum length of the
+                payload to send. Message will be trimmed if the size is
+                exceeded. Use 0 to turn off. Defaults to ``None`` which uses
+                ``config['APNS_DEFAULT_MAX_PAYLOAD_LENGTH']``.
 
         Keyword Args:
             badge (int, optional): Badge number count for alert. Defaults to
@@ -218,7 +230,12 @@ class APNSClient(object):
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
 
-        message = APNSMessage(message, **options)
+        if max_payload_length is None:
+            max_payload_length = self.default_max_payload_length
+
+        message = APNSMessage(message,
+                              max_payload_length=max_payload_length,
+                              **options)
 
         validate_tokens(ids)
         validate_message(message)
@@ -363,7 +380,12 @@ class APNSConnection(object):
             # No error response.
             return
 
-        data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+        try:
+            data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
+        except socket.error as ex:
+            log.error(('Could not read response: {0}.'.format(ex)))
+            self.close()
+            return
 
         if not data:  # pragma: no cover
             return
@@ -372,10 +394,7 @@ class APNSConnection(object):
 
         if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
             self.close()
-            raise APNSServerError(('Error response command must be {0}. '
-                                   'Found: {1}'
-                                   .format(APNS_ERROR_RESPONSE_COMMAND,
-                                           command)))
+            return
 
         code, identifier = struct.unpack('>BI', data[1:])
 
@@ -388,9 +407,25 @@ class APNSConnection(object):
 
     def send(self, frames):
         """Send stream of frames to APNS server."""
+        current_identifier = frames.next_identifier
         for frame in frames:
-            self.write(frame)
+            retries = 0
+            success = False
+            while not success and retries < 5:
+                try:
+                    self.write(frame)
+                    success = True
+                except socket.error as ex:
+                    log.error(('Could not send frame to server: {0}.'
+                               .format(ex)))
+                    self.close()
+                    retries += 1
+
+            if not success:
+                raise APNSTimeoutError(current_identifier)
+
             self.check_error(0)
+            current_identifier = frames.next_identifier
 
     def sendall(self, stream, error_timeout=10):
         """Send all notifications while handling errors. If an error occurs,
@@ -416,7 +451,7 @@ class APNSConnection(object):
                 if ex.fatal:
                     # We can't continue due to a fatal error. Go ahead and
                     # convert remaining notifications to errors.
-                    errors += [APNSUnsendableError(i + ex.identifier)
+                    errors += [APNSUnsendableError(i + stream.next_identifier)
                                for i, _ in enumerate(stream.peek())]
                     break
 
@@ -449,7 +484,8 @@ class APNSMessage(object):
                  launch_image=None,
                  mutable_content=None,
                  thread_id=None,
-                 extra=None):
+                 extra=None,
+                 max_payload_length=None):
         self.message = message
         self.badge = badge
         self.sound = sound
@@ -465,10 +501,11 @@ class APNSMessage(object):
         self.mutable_content = mutable_content
         self.thread_id = thread_id
         self.extra = extra
+        self.max_payload_length = max_payload_length
 
-    def to_dict(self):
-        """Return message as dictionary."""
-        message = {}
+    def _construct_dict(self, message=None):
+        """Return message as dictionary, overriding message."""
+        msg = {}
 
         if any([self.title,
                 self.title_loc_key,
@@ -478,7 +515,7 @@ class APNSMessage(object):
                 self.loc_args,
                 self.launch_image]):
             alert = {
-                'body': self.message,
+                'body': message,
                 'title': self.title,
                 'title-loc-key': self.title_loc_key,
                 'title-loc-args': self.title_loc_args,
@@ -490,10 +527,10 @@ class APNSMessage(object):
 
             alert = compact_dict(alert)
         else:
-            alert = self.message
+            alert = message
 
-        message.update(self.extra or {})
-        message['aps'] = compact_dict({
+        msg.update(self.extra or {})
+        msg['aps'] = compact_dict({
             'alert': alert,
             'badge': self.badge,
             'sound': self.sound,
@@ -503,7 +540,28 @@ class APNSMessage(object):
             'thread-id': self.thread_id
         })
 
-        return message
+        return msg
+
+    def _construct_truncated_dict(self):
+        """Return truncated message as dictionary."""
+        message = self.message
+        ending = ''
+
+        while True:
+            data = self._construct_dict(message + ending)
+            if len(json_dumps(data)) <= self.max_payload_length:
+                return data
+            elif len(message) == 0:
+                return self._construct_dict()
+            message = message[0:-1]
+            ending = '...'
+
+    def to_dict(self):
+        """Return message as dictionary, truncating if needed."""
+        if self.message and self.max_payload_length:
+            return self._construct_truncated_dict()
+
+        return self._construct_dict(self.message)
 
     def to_json(self):
         """Return message as JSON string."""
