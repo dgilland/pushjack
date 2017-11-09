@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import datetime
+import socket
 
 import mock
 import pytest
@@ -214,6 +215,16 @@ def test_apns_error_handling(apns_client, code, exception):
     with apns_create_error_socket(code):
         res = apns_client.send(apns_tokens(1), 'foo')
         assert isinstance(res.errors[0], exception)
+
+
+def test_apns_send_timeout_error(apns_client):
+    def throw(*args, **kargs):
+        raise socket.error('socket error')
+
+    with mock.patch.object(apns_client.conn, 'write', side_effect=throw):
+        res = apns_client.send(apns_tokens(1), 'foo')
+
+    assert isinstance(res.errors[0], exceptions.APNSTimeoutError)
 
 
 @parametrize('tokens', [
