@@ -65,6 +65,7 @@ APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
 APNS_DEFAULT_BATCH_SIZE = 100
 APNS_DEFAULT_ERROR_TIMEOUT = 10
 APNS_DEFAULT_MAX_PAYLOAD_LENGTH = 0
+APNS_DEFAULT_RETRIES = 5
 
 # Constants derived from http://goo.gl/wFVr2S
 APNS_PUSH_COMMAND = 2
@@ -102,12 +103,14 @@ class APNSClient(object):
                  default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
                  default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
                  default_batch_size=APNS_DEFAULT_BATCH_SIZE,
-                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH):
+                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH,
+                 default_retries=APNS_DEFAULT_RETRIES):
         self.certificate = certificate
         self.default_error_timeout = default_error_timeout
         self.default_expiration_offset = default_expiration_offset
         self.default_batch_size = default_batch_size
         self.default_max_payload_length = default_max_payload_length
+        self.default_retries = default_retries
         self._conn = None
 
     @property
@@ -139,6 +142,7 @@ class APNSClient(object):
              batch_size=None,
              error_timeout=None,
              max_payload_length=None,
+             retries=None,
              **options):
         """Send push notification to single or multiple recipients.
 
@@ -149,19 +153,22 @@ class APNSClient(object):
                 ``None`` to send an empty alert notification.
             expiration (int, optional): Expiration time of message in seconds
                 offset from now. Defaults to ``None`` which uses
-                ``config['APNS_DEFAULT_EXPIRATION_OFFSET']``.
+                :attr:`default_expiration_offset`.
             low_priority (boolean, optional): Whether to send notification with
                 the low priority flag. Defaults to ``False``.
             batch_size (int, optional): Number of notifications to group
                 together when sending. Defaults to ``None`` which uses
-                ``config['APNS_DEFAULT_BATCH_SIZE']``.
+                attr:`default_batch_size`.
             error_timeout (int, optional): Time in seconds to wait for the
                 error response after sending messages. Defaults to ``None``
-                which uses ``config['APNS_DEFAULT_ERROR_TIMEOUT']``.
+                which uses attr:`default_error_timeout`.
             max_payload_length (int, optional): The maximum length of the
                 payload to send. Message will be trimmed if the size is
                 exceeded. Use 0 to turn off. Defaults to ``None`` which uses
-                ``config['APNS_DEFAULT_MAX_PAYLOAD_LENGTH']``.
+                attr:`default_max_payload_length`.
+            retries (int, optional): Number of times to retry when the send
+                operation fails. Defaults to ``None`` which uses
+                :attr:`default_retries`.
 
         Keyword Args:
             badge (int, optional): Badge number count for alert. Defaults to
@@ -226,6 +233,9 @@ class APNSClient(object):
               ``APNSSendError``.
             - Raise :class:`.APNSMissingPayloadError` if
               payload is empty.
+
+        .. versionchanged:: 1.4.0
+            Added ``retries`` argument.
         """
         if not isinstance(ids, (list, tuple)):
             ids = [ids]
@@ -254,13 +264,16 @@ class APNSClient(object):
         if error_timeout is None:
             error_timeout = self.default_error_timeout
 
+        if retries is None:
+            retries = self.default_retries
+
         stream = APNSMessageStream(ids,
                                    message,
                                    expiration,
                                    priority,
                                    batch_size)
 
-        return self.conn.sendall(stream, error_timeout)
+        return self.conn.sendall(stream, error_timeout, retries=retries)
 
     def get_expired_tokens(self):
         """Return inactive device tokens that are no longer registered to
@@ -382,7 +395,7 @@ class APNSConnection(object):
 
         try:
             data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
-        except socket.error as ex:
+        except socket.error as ex:  # pragma: no cover
             log.error('Could not read response: {0}.'.format(ex))
             self.close()
             return
@@ -405,29 +418,41 @@ class APNSConnection(object):
         self.close()
         raise_apns_server_error(code, identifier)
 
-    def send(self, frames):
+    def send(self, frames, retries=APNS_DEFAULT_RETRIES):
         """Send stream of frames to APNS server."""
+        if retries <= 0:  # pragma: no cover
+            retries = 1
+
         current_identifier = frames.next_identifier
+
         for frame in frames:
-            retries = 0
             success = False
-            while not success and retries < 5:
+            last_ex = None
+
+            while not success and retries:
                 try:
                     self.write(frame)
                     success = True
                 except socket.error as ex:
-                    log.error('Could not send frame to server: {0}.'
-                              .format(ex))
+                    last_ex = ex
+                    log.warning('Could not send frame to server: {0}. '
+                                'Retrying send operation.'
+                                .format(ex))
                     self.close()
-                    retries += 1
+                    retries -= 1
 
             if not success:
+                log.error('Could not send frame to server: {0}.'
+                          .format(last_ex))
                 raise APNSTimeoutError(current_identifier)
 
             self.check_error(0)
             current_identifier = frames.next_identifier
 
-    def sendall(self, stream, error_timeout=10):
+    def sendall(self,
+                stream,
+                error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
+                retries=APNS_DEFAULT_RETRIES):
         """Send all notifications while handling errors. If an error occurs,
         then resume sending starting from after the token that failed. If any
         tokens failed, raise an error after sending all tokens.
@@ -439,7 +464,7 @@ class APNSConnection(object):
 
         while True:
             try:
-                self.send(stream)
+                self.send(stream, retries=retries)
 
                 # Perform the final error check here before exiting. A large
                 # enough timeout should be used so that no errors are missed.
