@@ -303,14 +303,14 @@ class APNSConnection(object):
         if self.sock:
             return
 
-        log.debug(('Establishing connection to APNS on {0}:{1} using '
-                   'certificate at {2}'
-                   .format(self.host, self.port, self.certificate)))
+        log.debug('Establishing connection to APNS on {0}:{1} using '
+                  'certificate at {2}'
+                  .format(self.host, self.port, self.certificate))
 
         self.sock = create_socket(self.host, self.port, self.certificate)
 
-        log.debug(('Established connection to APNS on {0}:{1}.'
-                   .format(self.host, self.port)))
+        log.debug('Established connection to APNS on {0}:{1}.'
+                  .format(self.host, self.port))
 
     def close(self):
         """Disconnect from APNS server."""
@@ -330,8 +330,8 @@ class APNSConnection(object):
         try:
             return select.select([], [self.client], [], timeout)[1]
         except Exception:  # pragma: no cover
-            log.debug(('Error while waiting for APNS socket to become '
-                       'writable.'))
+            log.debug('Error while waiting for APNS socket to become '
+                      'writable.')
             self.close()
             raise
 
@@ -340,8 +340,8 @@ class APNSConnection(object):
         try:
             return select.select([self.client], [], [], timeout)[0]
         except Exception:  # pragma: no cover
-            log.debug(('Error while waiting for APNS socket to become '
-                       'readable.'))
+            log.debug('Error while waiting for APNS socket to become '
+                      'readable.')
             self.close()
             raise
 
@@ -369,8 +369,8 @@ class APNSConnection(object):
             self.close()
             raise socket.timeout
 
-        log.debug(('Sending APNS notification batch containing {0} bytes.'
-                   .format(len(data))))
+        log.debug('Sending APNS notification batch containing {0} bytes.'
+                  .format(len(data)))
 
         return self.client.sendall(data)
 
@@ -383,7 +383,7 @@ class APNSConnection(object):
         try:
             data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
         except socket.error as ex:
-            log.error(('Could not read response: {0}.'.format(ex)))
+            log.error('Could not read response: {0}.'.format(ex))
             self.close()
             return
 
@@ -398,9 +398,9 @@ class APNSConnection(object):
 
         code, identifier = struct.unpack('>BI', data[1:])
 
-        log.debug(('Received APNS error response with '
-                   'code={0} for identifier={1}.'
-                   .format(code, identifier)))
+        log.debug('Received APNS error response with '
+                  'code={0} for identifier={1}.'
+                  .format(code, identifier))
 
         self.close()
         raise_apns_server_error(code, identifier)
@@ -416,8 +416,8 @@ class APNSConnection(object):
                     self.write(frame)
                     success = True
                 except socket.error as ex:
-                    log.error(('Could not send frame to server: {0}.'
-                               .format(ex)))
+                    log.error('Could not send frame to server: {0}.'
+                              .format(ex))
                     self.close()
                     retries += 1
 
@@ -432,8 +432,8 @@ class APNSConnection(object):
         then resume sending starting from after the token that failed. If any
         tokens failed, raise an error after sending all tokens.
         """
-        log.debug(('Preparing to send {0} notifications to APNS.'
-                   .format(len(stream))))
+        log.debug('Preparing to send {0} notifications to APNS.'
+                  .format(len(stream)))
 
         errors = []
 
@@ -461,8 +461,8 @@ class APNSConnection(object):
         log.debug('Sent {0} notifications to APNS.'.format(len(stream)))
 
         if errors:
-            log.debug(('Encountered {0} errors while sending to APNS.'
-                       .format(len(errors))))
+            log.debug('Encountered {0} errors while sending to APNS.'
+                      .format(len(errors)))
 
         return APNSResponse(stream.tokens, stream.message, errors)
 
@@ -651,8 +651,8 @@ class APNSMessageStream(object):
 
         for token_chunk in chunk(tokens, self.batch_size):
             for token in token_chunk:
-                log.debug(('Preparing notification for APNS token {0}'
-                           .format(token)))
+                log.debug('Preparing notification for APNS token {0}'
+                          .format(token))
 
                 data += self.pack(token,
                                   self.next_identifier,
@@ -738,8 +738,8 @@ def create_socket(host, port, certificate):
         with open(certificate, 'r') as fileobj:
             fileobj.read()
     except Exception as ex:
-        raise APNSAuthError(('The certificate at {0} is not readable: {1}'
-                             .format(certificate, ex)))
+        raise APNSAuthError('The certificate at {0} is not readable: {1}'
+                            .format(certificate, ex))
 
     sock = socket.socket()
 
@@ -753,8 +753,8 @@ def create_socket(host, port, certificate):
     sock.connect((host, port))
     sock.setblocking(0)
 
-    log.debug(('Performing SSL handshake with APNS on {0}:{1}'
-               .format(host, port)))
+    log.debug('Performing SSL handshake with APNS on {0}:{1}'
+              .format(host, port))
 
     do_ssl_handshake(sock)
 
@@ -802,9 +802,9 @@ def validate_tokens(tokens):
     invalid = invalid_tokens(tokens)
 
     if invalid:
-        raise APNSInvalidTokenError(('Invalid token format. '
-                                     'Expected 64 character hex string: '
-                                     '{0}'.format(', '.join(invalid))))
+        raise APNSInvalidTokenError('Invalid token format. '
+                                    'Expected 64 character hex string: '
+                                    '{0}'.format(', '.join(invalid)))
 
 
 def validate_message(message):

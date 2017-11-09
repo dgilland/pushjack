@@ -143,22 +143,22 @@ class GCMConnection(object):
 
     def post(self, message):
         """Send single POST request with message to GCM server."""
-        log.debug(('Sending GCM notification batch containing {0} bytes.'
-                   .format(len(message))))
+        log.debug('Sending GCM notification batch containing {0} bytes.'
+                  .format(len(message)))
         return self.session.post(self.url, message)
 
     def send(self, stream):
         """Send messages to GCM server and return list of responses."""
-        log.debug(('Preparing to send {0} notifications to GCM.'
-                   .format(len(stream))))
+        log.debug('Preparing to send {0} notifications to GCM.'
+                  .format(len(stream)))
 
         response = GCMResponse([self.post(message) for message in stream])
 
         log.debug('Sent {0} notifications to GCM.'.format(len(stream)))
 
         if response.failures:
-            log.debug(('Encountered {0} errors while sending to GCM.'
-                       .format(len(response.failures))))
+            log.debug('Encountered {0} errors while sending to GCM.'
+                      .format(len(response.failures)))
 
         return response
 
@@ -243,8 +243,8 @@ class GCMMessageStream(object):
 
         for ids in chunk(self.message.registration_ids, GCM_MAX_RECIPIENTS):
             for id in ids:
-                log.debug(('Preparing notification for GCM id {0}'
-                           .format(id)))
+                log.debug('Preparing notification for GCM id {0}'
+                          .format(id))
 
             if len(ids) > 1:
                 to_field = 'registration_ids'
