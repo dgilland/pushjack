@@ -43,7 +43,8 @@ Send notifications using the ``APNSClient`` class:
     client = APNSClient(certificate='<path/to/certificate.pem>',
                         default_error_timeout=10,
                         default_expiration_offset=2592000,
-                        default_batch_size=100)
+                        default_batch_size=100,
+                        default_retries=5)
 
     token = '<device token>'
     alert = 'Hello world.'
