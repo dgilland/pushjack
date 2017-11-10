@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.4.0 (2017-11-09)
+-------------------
+
 - apns: Add exceptions ``APNSProtocolError`` and ``APNSTimeoutError``.  Thanks `Jakub Kleň`_!
 - apns: Add retry mechanism to ``APNSClient.send``. Thanks `Jakub Kleň`_!
 
