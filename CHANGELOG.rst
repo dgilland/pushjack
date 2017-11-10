@@ -4,6 +4,21 @@ Changelog
 =========
 
 
+- apns: Add exceptions ``APNSProtocolError`` and ``APNSTimeoutError``.  Thanks `Jakub Kleň`_!
+- apns: Add retry mechanism to ``APNSClient.send``. Thanks `Jakub Kleň`_!
+
+  - Add ``default_retries`` argument to ``APNSClient`` initialization. Defaults to ``5``.
+  - Add ``retries`` argument to ``APNSClient.send``. By default will use ``APNSClient.default_retries`` unless explicitly passed in.
+  - If unable to send after ``retries``, an ``APNSTimeoutError`` will be raised.
+
+- apns: Fix bug in bulk ``APNSClient.send`` that resulted in an off-by-one error for message identifier in returned errors. Thanks `Jakub Kleň`_!
+- apns: Add max payload truncation option to ``APNSClient.send``.  Thanks `Jakub Kleň`_!
+
+  - Add ``default_max_payload_length`` argument to ``APNSClient`` initialization. Defaults to ``0`` which disabled max payload length check.
+  - Add ``max_payload_length`` argument to ``APNSClient.send``. By default will use ``APNSClient.default_max_payload_length`` unless explicitly passed in.
+  - When ``max_payload_length`` set, messages will be truncated to fit within the length restriction by trimming the "message" text and appending it with "...".
+
+
 v1.3.0 (2017-03-11)
 -------------------
 
@@ -151,3 +166,4 @@ v0.0.1 (2015-03-25)
 .. _Brad Montgomery: https://github.com/bradmontgomery
 .. _Julius Seporaitis: https://github.com/seporaitis
 .. _Ahmed Khedr: https://github.com/aakhedr
+.. _Jakub Kleň: https://github.com/kukosk
