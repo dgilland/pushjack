@@ -125,6 +125,7 @@ def test_apns_resend(apns_client, apns_socket, tokens, identifiers, exception):
 
 @parametrize('token', [
     '1' * 64,
+    '1' * 108,
     'abcdef0123456789' * 4,
 ])
 def test_valid_token(apns_client, apns_socket, token):
@@ -135,6 +136,7 @@ def test_valid_token(apns_client, apns_socket, token):
 @parametrize('token', [
     '1',
     'x' * 64,
+    'x' * 108,
 ])
 def test_invalid_token(apns_client, apns_socket, token):
     with pytest.raises(exceptions.APNSInvalidTokenError) as exc_info:

@@ -147,8 +147,8 @@ class APNSClient(object):
         """Send push notification to single or multiple recipients.
 
         Args:
-            ids (list): APNS device tokens. Each item is expected to be a 64
-                character hex string.
+            ids (list): APNS device tokens. Each item is expected to be a hex
+                string.
             message (str|dict): Message string or APS dictionary. Set to
                 ``None`` to send an empty alert notification.
             expiration (int, optional): Expiration time of message in seconds
@@ -814,9 +814,7 @@ def do_ssl_handshake(sock):
 def valid_token(token):
     """Return whether token is in valid format."""
     try:
-        assert unhexlify(token)
-        assert len(token) == 64
-        valid = True
+        valid = token and unhexlify(token)
     except Exception:
         valid = False
 
@@ -834,14 +832,13 @@ def validate_tokens(tokens):
 
     if invalid:
         raise APNSInvalidTokenError('Invalid token format. '
-                                    'Expected 64 character hex string: '
-                                    '{0}'.format(', '.join(invalid)))
+                                    'Expected hex string: {0}'
+                                    .format(', '.join(invalid)))
 
 
 def validate_message(message):
     """Check whether `message` is valid."""
     if len(message) > APNS_MAX_NOTIFICATION_SIZE:
-        raise APNSInvalidPayloadSizeError(
-            ('Notification body cannot exceed '
-             '{0} bytes'
-             .format(APNS_MAX_NOTIFICATION_SIZE)))
+        raise APNSInvalidPayloadSizeError('Notification body cannot exceed '
+                                          '{0} bytes'
+                                          .format(APNS_MAX_NOTIFICATION_SIZE))
