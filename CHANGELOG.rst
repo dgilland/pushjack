@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.4.1 (2018-06-18)
+-------------------
+
 - apns: Remove restriction on token length due to incorrect assumption about tokens always being 64 characters long.
 
 
