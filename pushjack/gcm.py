@@ -36,7 +36,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-GCM_URL = 'https://android.googleapis.com/gcm/send'
+GCM_URL = 'https://fcm.googleapis.com/fcm/send'
 
 # GCM only allows up to 1000 reg ids per bulk message.
 GCM_MAX_RECIPIENTS = 1000
