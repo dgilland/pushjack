@@ -184,14 +184,14 @@ def test_gcm_invalid_api_key(gcm_client):
      {},
      mock.call().headers.update({'Authorization': 'key=1234',
                                  'Content-Type': 'application/json'}),
-     mock.call().post('https://android.googleapis.com/gcm/send',
+     mock.call().post('https://fcm.googleapis.com/fcm/send',
                       b'{"data":{},"priority":"high","to":"abc"}')),
     (['abc'],
      {},
      {},
      mock.call().headers.update({'Authorization': 'key=1234',
                                  'Content-Type': 'application/json'}),
-     mock.call().post('https://android.googleapis.com/gcm/send',
+     mock.call().post('https://fcm.googleapis.com/fcm/send',
                       b'{"data":{},"priority":"high","to":"abc"}'))
 ])
 def test_gcm_connection_call(gcm_client, tokens, data, extra, auth, expected):
