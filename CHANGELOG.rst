@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+- gcm: Use FCM URL instead of deprecated GCM URL. Thanks `Lukas Anzinger`_!
+
+
 v1.4.1 (2018-06-18)
 -------------------
 
@@ -176,3 +179,4 @@ v0.0.1 (2015-03-25)
 .. _Julius Seporaitis: https://github.com/seporaitis
 .. _Ahmed Khedr: https://github.com/aakhedr
 .. _Jakub Kleň: https://github.com/kukosk
+.. _Lukas Anzinger: https://github.com/Lukas0907
