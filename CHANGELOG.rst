@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.5.0 (2018-07-29)
+-------------------
+
 - gcm: Use FCM URL instead of deprecated GCM URL. Thanks `Lukas Anzinger`_!
 
 
