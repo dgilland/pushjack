@@ -64,7 +64,7 @@ Ready to contribute? Here's how to set up ``pushjack`` for local development.
 3. Install your local copy into a virtualenv. Assuming you have virtualenv installed, this is how you set up your fork for local development::
 
     $ cd pushjack
-    $ pip install -r requirements-dev.txt
+    $ pip install -r requirements.txt
 
 4. Create a branch for local development::
 
@@ -74,7 +74,7 @@ Ready to contribute? Here's how to set up ``pushjack`` for local development.
 
 5. When you're done making changes, check that your changes pass linting and all unit tests by testing with tox across all supported Python versions::
 
-    $ invoke tox
+    $ tox
 
 6. Add yourself to ``AUTHORS.rst``.
 
@@ -93,5 +93,4 @@ Pull Request Guidelines
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put your new functionality into a function with a docstring, and add the feature to the README.rst.
-3. The pull request should work for Python 2.7, 3.4, and 3.5. Check https://travis-ci.org/dgilland/pushjack/pull_requests and make sure that the tests pass for all supported Python versions.
+2. The pull request should work for all versions Python that this project supports. Check https://travis-ci.org/dgilland/pushjack/pull_requests and make sure that the all environments pass.
