@@ -471,12 +471,13 @@ class APNSConnection(object):
                 self.check_error(error_timeout)
             except APNSServerError as ex:
                 errors.append(ex)
-                stream.seek(ex.identifier)
+                next_identifier = ex.identifier + 1
+                stream.seek(next_identifier)
 
                 if ex.fatal:
                     # We can't continue due to a fatal error. Go ahead and
                     # convert remaining notifications to errors.
-                    errors += [APNSUnsendableError(i + stream.next_identifier)
+                    errors += [APNSUnsendableError(next_identifier + i)
                                for i, _ in enumerate(stream.peek())]
                     break
 
@@ -631,7 +632,7 @@ class APNSMessageStream(object):
         Args:
             identifier (int): Index of tokens to skip.
         """
-        self.next_identifier = identifier + 1
+        self.next_identifier = identifier
 
     def peek(self, n=None):
         return self.tokens[self.next_identifier:n]
