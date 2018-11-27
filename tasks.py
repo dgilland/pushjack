@@ -8,6 +8,8 @@ PACKAGE_NAME = 'pushjack'
 FLAKE8_IGNORE = ','.join([
     'F401',  # `module` imported but unused
     'F811',  # redefinition of unused `name` from line `N`
+    'W503',  # line break before binary operator
+    'W504',  # line break after binary operator
 ])
 PYLINT_IGNORE = ','.join([
     'not-callable',

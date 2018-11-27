@@ -44,6 +44,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
 class TCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
+    block_on_close = False
 
 
 class TCPClientServer(object):
