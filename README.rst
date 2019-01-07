@@ -16,6 +16,10 @@ Links
 - TravisCI: https://travis-ci.org/dgilland/pushjack
 
 
+Requirements 
+==========
+- Python (2.7, 3.4, 3.5, 3.6, 3.7)
+
 Quickstart
 ==========
 
