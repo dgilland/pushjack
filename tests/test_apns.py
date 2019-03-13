@@ -258,8 +258,7 @@ def test_apns_create_socket(tmpdir):
 
         assert wrap_socket.called
 
-        expected = {'ssl_version': 3,
-                    'certfile': str(certificate),
+        expected = {'certfile': str(certificate),
                     'do_handshake_on_connect': False}
 
         assert wrap_socket.mock_calls[0][2] == expected
