@@ -4,6 +4,9 @@ Changelog
 =========
 
 
+v1.6.0 (2019-03-15)
+-------------------
+
 - apns: Remove TLS version flag and default to ``ssl.PROTOCOL_TLS`` when creating APNS socket connection. Thanks `Tanner Stirrat`_!
 
 
