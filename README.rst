@@ -30,8 +30,8 @@ Install using pip:
 Whether using ``APNS`` or ``GCM``, pushjack provides clients for each.
 
 
-APNS
-----
+APNS (using certificates)
+-------------------------
 
 Send notifications using the ``APNSClient`` class:
 
@@ -122,6 +122,51 @@ For the APNS sandbox, use ``APNSSandboxClient`` instead:
 .. code-block:: python
 
     from pushjack import APNSSandboxClient
+
+APNS (using Auth tokens)
+------------------------
+
+Send notifications using the ``APNSHTTP2Client`` class:
+
+
+.. code-block:: python
+
+    from pushjack import APNSHTTP2Client
+
+    key = "my_key"
+
+    token = apns.APNSAuthToken(
+        token=key,
+        team_id="my_team_id",
+        key_id="my_key_id",
+    )
+
+    client = apns.APNSHTTP2Client(
+        token=token,
+        bundle_id='my_bundle_id',
+    )
+
+    response = client.send_message(
+        device_id="my_device_id",
+        message="message",
+        content_available=True,
+        title="title"
+    )
+
+
+Close APNS connection.
+
+.. code-block:: python
+
+    client.conn.close()
+
+
+For the APNS sandbox, use ``APNSHTTP2SandboxClient`` instead:
+
+
+.. code-block:: python
+
+    from pushjack import APNSHTTP2SandboxClient
 
 
 GCM

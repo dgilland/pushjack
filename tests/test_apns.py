@@ -279,3 +279,95 @@ def test_apns_create_socket_empty_certificate(tmpdir):
 
     with pytest.raises(exceptions.APNSAuthError):
         apns.create_socket(TCP_HOST, TCP_PORT, str(certificate))
+
+
+@mock.patch.object(apns.jwt, 'encode')
+def test_token_file(encode, tmpdir):
+    key_bytes = b"test"
+    team_id = "ldkhe90red"
+    key_id = "Q6V48A56PQ"
+    key = key_bytes.decode('utf-8')
+
+    # Create token file.
+    file = tmpdir.mkdir("sub").join("{0}.p8".format(team_id))
+    file.write(key_bytes)
+
+    # Mock the encoder.
+    encrypted_token = b'encrypted_version'
+    encode.return_value = encrypted_token
+
+    # Create token file.
+    token_file = apns.APNSAuthTokenFile(
+        auth_key_file_path=file.strpath,
+        team_id=team_id,
+        key_id=key_id)
+
+    # Assertions.
+    assert token_file.value == key
+    assert token_file.encrypted_token == encrypted_token.decode('ascii')
+    encode.assert_called_once_with(
+        payload={
+            'iss': team_id,
+            'iat': token_file.encrypted_at
+        },
+        key=token_file.value,
+        algorithm=token_file.algorithm,
+        headers={
+            'alg': token_file.algorithm,
+            'kid': key_id
+        }
+    )
+    assert token_file.is_fresh()
+
+
+def test_token():
+    key_bytes = b"test"
+    team_id = "ldkhe90red"
+    key_id = "Q6V48A56PQ"
+    key = key_bytes.decode('utf-8')
+
+    token = apns.APNSAuthToken(
+        token=key,
+        team_id=team_id,
+        key_id=key_id
+    )
+
+    assert token.value == key
+
+
+@mock.patch.object(apns, 'jwt', new=mock.Mock())
+@mock.patch.object(apns, 'APNSMessage', autospec=True)
+@mock.patch.object(apns, 'validate_tokens', autospec=True)
+@mock.patch.object(apns, 'validate_message', autospec=True)
+def test_send(validate_message, validate_tokens, message_cls):
+    key = "dummy_key"
+    team_id = "123456"
+    key_id = "ABCDEFG"
+
+    # Create an auth token.
+    token = apns.APNSAuthToken(
+        token=key,
+        team_id=team_id,
+        key_id=key_id
+    )
+
+    client = apns.APNSHTTP2Client(token=token, bundle_id='1234')
+
+    conn = mock.create_autospec(
+        apns.HTTP20Connection, instance=True, spec_set=True)
+    conn.get_response().status = 200
+
+    # Mock the connection.
+    client._conn = conn
+
+    # Create a message to be sent.
+    message = mock.Mock()
+    message_cls.return_value = message
+
+    # Action - send the message out.
+    client.send(ids=1, message='message')
+
+    # Assertions
+    validate_tokens.assert_called_once_with([1])
+    validate_message.assert_called_once_with(
+        message, max_size=apns.APNS_HTTP2_MAX_NOTIFICATION_SIZE)

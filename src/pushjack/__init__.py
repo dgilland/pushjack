@@ -9,6 +9,8 @@ from .apns import (
     APNSSandboxClient,
     APNSResponse,
     APNSExpiredToken,
+    APNSHTTP2Client,
+    APNSHTTP2SandboxClient,
 )
 
 from .gcm import (

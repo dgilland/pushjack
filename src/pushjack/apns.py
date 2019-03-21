@@ -20,34 +20,40 @@ For more details regarding Apple's APNS documentation, consult the following:
 - `Provider Communication with APNS <http://goo.gl/qMfByr>`_
 """
 
-from binascii import hexlify, unhexlify
-from collections import namedtuple
+import datetime
 import logging
 import select
 import socket
 import ssl
 import struct
 import time
+import uuid
+from binascii import hexlify, unhexlify
+from collections import namedtuple
 
-from .utils import json_dumps, chunk, compact_dict
+import jwt
+from hyper import HTTP20Connection
+
 from .exceptions import (
     APNSError,
     APNSAuthError,
+    APNSMessagePartiallySentError,
     APNSInvalidTokenError,
     APNSInvalidPayloadSizeError,
-    APNSMissingPayloadError,
     APNSServerError,
     APNSTimeoutError,
     APNSUnsendableError,
     raise_apns_server_error
 )
-
+from .utils import json_dumps, chunk, compact_dict
 
 __all__ = (
     'APNSClient',
     'APNSSandboxClient',
     'APNSResponse',
     'APNSExpiredToken',
+    'APNSHTTP2Client',
+    'APNSHTTP2SandboxClient'
 )
 
 
@@ -56,6 +62,11 @@ log = logging.getLogger(__name__)
 
 APNS_HOST = 'gateway.push.apple.com'
 APNS_SANDBOX_HOST = 'gateway.sandbox.push.apple.com'
+APNS_TOKEN_BASED_SANDBOX_HOST = 'api.sandbox.push.apple.com'
+APNS_TOKEN_BASED_SANDBOX_PORT = 443
+APNS_TOKEN_BASED_HOST = 'api.push.apple.com'
+APNS_TOKEN_BASED_PORT = 443
+
 APNS_PORT = 2195
 APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
 APNS_FEEDBACK_SANDBOX_HOST = 'feedback.sandbox.push.apple.com'
@@ -79,6 +90,7 @@ APNS_ERROR_RESPONSE_COMMAND = 8
 APNS_ERROR_RESPONSE_LEN = 6
 APNS_FEEDBACK_HEADER_LEN = 6
 APNS_MAX_NOTIFICATION_SIZE = 2048
+APNS_HTTP2_MAX_NOTIFICATION_SIZE = 4096
 
 #: Indicates that the push message should be sent at a time that conserves
 #: power on the device receiving it.
@@ -89,6 +101,8 @@ APNS_LOW_PRIORITY = 5
 #: error to use this priority for a push that contains only the
 #: ``content_available`` key.
 APNS_HIGH_PRIORITY = 10
+
+APNS_HTTP2_URL = '/3/device/{0}'
 
 
 class APNSClient(object):
@@ -764,6 +778,297 @@ class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
     pass
 
 
+class HttpStatus(object):
+    OK = 200
+    BAD_REQUEST = 400
+    FORBIDDEN = 403
+    METHOD_NOT_ALLOWED = 405
+    GONE = 410
+    PAYLOAD_TOO_LARGE = 413
+    TOO_MANY_REQUESTS = 429
+    INTERNAL_SERVER_ERROR = 500
+    SERVICE_UNAVAILABLE = 503
+
+
+class APNSAuthToken(object):
+
+    def __init__(self, token, team_id, key_id, algorithm='ES256'):
+        """
+        Args:
+            token: the content of APNS auth token from p8 file.
+            key_id: the 10-character Key ID obtained from the dev account.
+            team_id: the 10-character Team ID obtained from the dev account.
+            algorithm: the encryption algorithm to be used.
+        """
+        assert token, "Must provide an auth token."
+
+        self._token = token
+        # Let sub-class explicitly assign values to these vars to ensure
+        # they are overwritten.
+        self.team_id = team_id
+        self.key_id = key_id
+        self.algorithm = algorithm
+        # The date and the time the last encryption was performed.
+        self.encrypted_at = None
+        # Base64URL-encoded token in JWT format.
+        self._encrypted_token = None
+
+    @property
+    def value(self):
+        return self._token
+
+    @property
+    def encrypted_token(self):
+        if not self._encrypted_token or not self.is_fresh():
+            self._encrypted_token = self._encrypt()
+
+        return self._encrypted_token
+
+    def _encrypt(self):
+        """
+        Encrypt and return the auth token.
+        """
+        self.encrypted_at = datetime.datetime.utcnow()
+
+        # Encrypt it.
+        _token = jwt.encode(
+            payload={
+                'iss': self.team_id,
+                'iat': self.encrypted_at
+            },
+            key=self.value,
+            algorithm=self.algorithm,
+            headers={
+                'alg': self.algorithm,
+                'kid': self.key_id,
+            }
+        )
+
+        return _token.decode('ascii')
+
+    def is_fresh(self):
+        """
+        For security, APNs requires you to refresh your token regularly.
+        Refresh the token no more than once every 20 minutes and no less than
+        once every 60 minutes.
+        """
+        if not self.encrypted_at:
+            # Unable to determine, so return false.
+            return False
+
+        return self.encrypted_at + datetime.timedelta(minutes=50) > \
+            datetime.datetime.utcnow()
+
+
+class APNSAuthTokenFile(APNSAuthToken):
+
+    def __init__(self, auth_key_file_path, team_id, key_id, algorithm='ES256'):
+        """
+        Args:
+            auth_key_file_path: p8 auth token file path
+            key_id: the 10-character Key ID obtained from the dev account.
+            team_id: the 10-character Team ID obtained from the dev account.
+            algorithm: the encryption algorithm to be used.
+        """
+        assert auth_key_file_path, 'Must provide the auth key file path.'
+
+        with open(auth_key_file_path) as f:
+            token = f.read()
+
+        super(APNSAuthTokenFile, self).__init__(
+            token=token, team_id=team_id, key_id=key_id, algorithm=algorithm)
+
+
+class APNSHTTP2Client(object):
+    host = APNS_TOKEN_BASED_HOST
+    port = APNS_TOKEN_BASED_PORT
+
+    def __init__(self,
+                 token,
+                 bundle_id,
+                 secure=None,
+                 default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
+                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH
+                 ):
+        """
+        Args:
+            token: an instance of either the APNSAuthToken or
+            the APNSAuthTokenFile.
+            bundle_id: the bundle id of the app.
+            secure: allows the HTTP20Connection to ignore the NPN/ALPN result
+            (refer to https://python-hyper.org/projects/h2/en/stable/
+            negotiating-http2.html#https-urls-alpn-and-npn for more detail).
+        """
+        # Note - Token can be stored in db in some cases, so let us allow
+        # the token to be passed in as a file or the content of the file.
+        # Extract the logic of dealing with token out from init.
+        if all(
+                (
+                    not isinstance(token, APNSAuthToken),
+                    not isinstance(token, APNSAuthTokenFile),
+                )
+        ):
+            raise TypeError('Token must be instance of either APNSAuthToken'
+                            ' or APNSAuthTokenFile')
+
+        assert bundle_id, 'Must provide a bundle ID'
+
+        self.token = token
+        self.bundle_id = bundle_id
+        self.secure = secure
+        self.default_expiration_offset = default_expiration_offset
+        self.default_max_payload_length = default_max_payload_length
+        self._conn = None
+
+    def send(self,
+             ids,
+             message=None,
+             expiration=None,
+             low_priority=None,
+             max_payload_length=None,
+             **options):
+
+        """
+        Send push notification to single or multiple recipients.
+
+        Args:
+            ids: APNS device tokens. Each item is expected to be a hex
+                string.
+            message (str|dict): Message string or APS dictionary. Set to
+                ``None`` to send an empty alert notification.
+            expiration (int, optional): Expiration time of message in seconds
+                offset from now. Defaults to ``None`` which uses
+                :attr:`default_expiration_offset`.
+            low_priority (boolean, optional): Whether to send notification with
+                the low priority flag. Defaults to ``False``.
+            max_payload_length (int, optional): The maximum length of the
+                payload to send. Message will be trimmed if the size is
+                exceeded. Use 0 to turn off. Defaults to ``None`` which uses
+                attr:`default_max_payload_length`.
+
+        Keyword Args:
+            badge (int, optional): Badge number count for alert. Defaults to
+                ``None``.
+            sound (str, optional): Name of the sound file to play for alert.
+                Defaults to ``None``.
+            category (str, optional): Name of category. Defaults to ``None``.
+            content_available (bool, optional): If ``True``, indicate that new
+                content is available. Defaults to ``None``.
+            title (str, optional): Alert title.
+            title_loc_key (str, optional): The key to a title string in the
+                ``Localizable.strings`` file for the current localization.
+            title_loc_args (list, optional): List of string values to appear in
+                place of the format specifiers in `title_loc_key`.
+            action_loc_key (str, optional): Display an alert that includes the
+                ``Close`` and ``View`` buttons. The string is used as a key to
+                get a localized string in the current localization to use for
+                the right button’s title instead of ``"View"``.
+            loc_key (str, optional): A key to an alert-message string in a
+                ``Localizable.strings`` file for the current localization.
+            loc_args (list, optional): List of string values to appear in place
+                of the format specifiers in ``loc_key``.
+            launch_image (str, optional): The filename of an image file in the
+                app bundle; it may include the extension or omit it.
+            mutable_content (bool, optional): if ``True``, triggers Apple
+                Notification Service Extension. Defaults to ``None``.
+            thread_id (str, optional): Identifier for grouping notifications.
+                iOS groups notifications with the same thread identifier
+                together in Notification Center. Defaults to ``None``.
+            extra (dict, optional): Extra data to include with the alert.
+        """
+        assert ids, 'Must provide device IDs.'
+
+        if not isinstance(ids, (list, tuple)):
+            ids = [ids]
+
+        unsendable_devices = []
+        if max_payload_length is None:
+            max_payload_length = self.default_max_payload_length
+
+        message = APNSMessage(message,
+                              max_payload_length=max_payload_length,
+                              **options)
+
+        validate_tokens(ids)
+        validate_message(message, max_size=APNS_HTTP2_MAX_NOTIFICATION_SIZE)
+
+        for device_id in ids:
+
+            try:
+                self._send(
+                    device_id=device_id, message=message,
+                    low_priority=low_priority, expiration=expiration)
+            except Exception:
+                unsendable_devices.append(device_id)
+
+        if not unsendable_devices:
+            return
+
+        if len(unsendable_devices) != len(ids):
+            raise APNSMessagePartiallySentError
+
+        raise APNSUnsendableError("Unable to send messages")
+
+    def _send(
+            self, device_id, message, low_priority,
+            identifier=None, expiration=None):
+        json_data = message.to_json()
+
+        if low_priority:
+            priority = str(APNS_LOW_PRIORITY)
+        else:
+            priority = str(APNS_HIGH_PRIORITY)
+
+        if expiration is None:
+            expiration = str(int(time.time() + self.default_expiration_offset))
+
+        if not identifier:
+            identifier = str(uuid.uuid4())
+
+        request_headers = {
+            'apns-expiration': expiration,
+            'apns-priority': priority,
+            'apns-id': identifier,
+            'apns-topic': self.bundle_id,
+            'authorization': 'bearer {0}'.format(self.token.encrypted_token)
+        }
+
+        try:
+            stream_id = self.conn.request(
+                method='POST',
+                url=APNS_HTTP2_URL.format(device_id),
+                body=json_data,
+                headers=request_headers
+            )
+            response = self.conn.get_response(stream_id)
+        except Exception as e:
+            raise APNSError(description=str(e))
+        if response.status != HttpStatus.OK:
+            raise APNSError(
+                'Invalid status code - {0}'.format(response.status))
+
+        return response
+
+    @property
+    def conn(self):
+        """
+        Return a HTTP2 connect lazily.
+        """
+        if not self._conn:
+            self._conn = self.create_connection()
+
+        return self._conn
+
+    def create_connection(self):
+        return HTTP20Connection(
+            host=self.host, port=self.port, secure=self.secure)
+
+
+class APNSHTTP2SandboxClient(APNSHTTP2Client):
+    host = APNS_TOKEN_BASED_SANDBOX_HOST
+    port = APNS_TOKEN_BASED_SANDBOX_PORT
+
+
 def create_socket(host, port, certificate):
     """Create a socket connection to the APNS server."""
     try:
@@ -833,9 +1138,11 @@ def validate_tokens(tokens):
                                     .format(', '.join(invalid)))
 
 
-def validate_message(message):
+def validate_message(message, max_size=None):
     """Check whether `message` is valid."""
-    if len(message) > APNS_MAX_NOTIFICATION_SIZE:
+    if not max_size:
+        max_size = APNS_MAX_NOTIFICATION_SIZE
+    if len(message) > max_size:
         raise APNSInvalidPayloadSizeError('Notification body cannot exceed '
                                           '{0} bytes'
-                                          .format(APNS_MAX_NOTIFICATION_SIZE))
+                                          .format(max_size))

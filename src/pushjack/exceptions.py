@@ -72,6 +72,13 @@ class APNSError(NotificationError):
     pass
 
 
+class APNSMessagePartiallySentError(APNSError):
+    """
+    Messages are partially sent out.
+    """
+    description = 'Not all messages are sent'
+
+
 class APNSAuthError(APNSError):
     """Exception with APNS certificate."""
     pass
