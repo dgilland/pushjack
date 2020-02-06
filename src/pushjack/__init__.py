@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Pushjack module.
-"""
+"""Pushjack module."""
 
 from .__version__ import __version__
 
@@ -58,6 +57,7 @@ import logging
 try:  # Python 2.7+
     from logging import NullHandler  # pylint: disable=no-name-in-module
 except ImportError:  # pragma: no cover
+
     class NullHandler(logging.Handler):
         def emit(self, record):
             pass

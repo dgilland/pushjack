@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Client module for Apple Push Notification service.
+"""
+Client module for Apple Push Notification service.
 
 The algorithm used to send bulk push notifications is optimized to eagerly
 check for errors using a single thread. Error checking is performed after each
@@ -39,26 +40,26 @@ from .exceptions import (
     APNSServerError,
     APNSTimeoutError,
     APNSUnsendableError,
-    raise_apns_server_error
+    raise_apns_server_error,
 )
 
 
 __all__ = (
-    'APNSClient',
-    'APNSSandboxClient',
-    'APNSResponse',
-    'APNSExpiredToken',
+    "APNSClient",
+    "APNSSandboxClient",
+    "APNSResponse",
+    "APNSExpiredToken",
 )
 
 
 log = logging.getLogger(__name__)
 
 
-APNS_HOST = 'gateway.push.apple.com'
-APNS_SANDBOX_HOST = 'gateway.sandbox.push.apple.com'
+APNS_HOST = "gateway.push.apple.com"
+APNS_SANDBOX_HOST = "gateway.sandbox.push.apple.com"
 APNS_PORT = 2195
-APNS_FEEDBACK_HOST = 'feedback.push.apple.com'
-APNS_FEEDBACK_SANDBOX_HOST = 'feedback.sandbox.push.apple.com'
+APNS_FEEDBACK_HOST = "feedback.push.apple.com"
+APNS_FEEDBACK_SANDBOX_HOST = "feedback.sandbox.push.apple.com"
 APNS_FEEDBACK_PORT = 2196
 
 APNS_DEFAULT_EXPIRATION_OFFSET = 60 * 60 * 24 * 30  # 1 month
@@ -93,18 +94,21 @@ APNS_HIGH_PRIORITY = 10
 
 class APNSClient(object):
     """APNS client class."""
+
     host = APNS_HOST
     port = APNS_PORT
     feedback_host = APNS_FEEDBACK_HOST
     feedback_port = APNS_FEEDBACK_PORT
 
-    def __init__(self,
-                 certificate,
-                 default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
-                 default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
-                 default_batch_size=APNS_DEFAULT_BATCH_SIZE,
-                 default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH,
-                 default_retries=APNS_DEFAULT_RETRIES):
+    def __init__(
+        self,
+        certificate,
+        default_error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
+        default_expiration_offset=APNS_DEFAULT_EXPIRATION_OFFSET,
+        default_batch_size=APNS_DEFAULT_BATCH_SIZE,
+        default_max_payload_length=APNS_DEFAULT_MAX_PAYLOAD_LENGTH,
+        default_retries=APNS_DEFAULT_RETRIES,
+    ):
         self.certificate = certificate
         self.default_error_timeout = default_error_timeout
         self.default_expiration_offset = default_expiration_offset
@@ -126,25 +130,26 @@ class APNSClient(object):
 
     def create_feedback_connection(self):
         """Create and return new APNS connection to feedback server."""
-        return APNSConnection(self.feedback_host,
-                              self.feedback_port,
-                              self.certificate)
+        return APNSConnection(self.feedback_host, self.feedback_port, self.certificate)
 
     def close(self):
         """Close APNS connection."""
         self.conn.close()
 
-    def send(self,
-             ids,
-             message=None,
-             expiration=None,
-             low_priority=None,
-             batch_size=None,
-             error_timeout=None,
-             max_payload_length=None,
-             retries=None,
-             **options):
-        """Send push notification to single or multiple recipients.
+    def send(
+        self,
+        ids,
+        message=None,
+        expiration=None,
+        low_priority=None,
+        batch_size=None,
+        error_timeout=None,
+        max_payload_length=None,
+        retries=None,
+        **options
+    ):
+        """
+        Send push notification to single or multiple recipients.
 
         Args:
             ids (list): APNS device tokens. Each item is expected to be a hex
@@ -243,9 +248,7 @@ class APNSClient(object):
         if max_payload_length is None:
             max_payload_length = self.default_max_payload_length
 
-        message = APNSMessage(message,
-                              max_payload_length=max_payload_length,
-                              **options)
+        message = APNSMessage(message, max_payload_length=max_payload_length, **options)
 
         validate_tokens(ids)
         validate_message(message)
@@ -267,42 +270,41 @@ class APNSClient(object):
         if retries is None:
             retries = self.default_retries
 
-        stream = APNSMessageStream(ids,
-                                   message,
-                                   expiration,
-                                   priority,
-                                   batch_size)
+        stream = APNSMessageStream(ids, message, expiration, priority, batch_size)
 
         return self.conn.sendall(stream, error_timeout, retries=retries)
 
     def get_expired_tokens(self):
-        """Return inactive device tokens that are no longer registered to
-        receive notifications.
+        """
+        Return inactive device tokens that are no longer registered to receive
+        notifications.
 
         Returns:
             list: List of :class:`APNSExpiredToken` instances.
 
         .. versionadded:: 0.0.1
         """
-        log.debug('Preparing to check for expired APNS tokens.')
+        log.debug("Preparing to check for expired APNS tokens.")
 
         conn = self.create_feedback_connection()
         tokens = list(APNSFeedbackStream(conn))
         conn.close()
 
-        log.debug('Received {0} expired APNS tokens.'.format(len(tokens)))
+        log.debug("Received {0} expired APNS tokens.".format(len(tokens)))
 
         return tokens
 
 
 class APNSSandboxClient(APNSClient):
     """APNS client class for sandbox server."""
+
     host = APNS_SANDBOX_HOST
     feedback_host = APNS_FEEDBACK_SANDBOX_HOST
 
 
 class APNSConnection(object):
     """Manager for APNS socket connection."""
+
     def __init__(self, host, port, certificate):
         self.host = host
         self.port = port
@@ -310,25 +312,29 @@ class APNSConnection(object):
         self.sock = None
 
     def connect(self):
-        """Lazily connect to APNS server. Re-establish connection if previously
-        closed.
+        """
+        Lazily connect to APNS server.
+
+        Re-establish connection if previously closed.
         """
         if self.sock:
             return
 
-        log.debug('Establishing connection to APNS on {0}:{1} using '
-                  'certificate at {2}'
-                  .format(self.host, self.port, self.certificate))
+        log.debug(
+            "Establishing connection to APNS on {0}:{1} using "
+            "certificate at {2}".format(self.host, self.port, self.certificate)
+        )
 
         self.sock = create_socket(self.host, self.port, self.certificate)
 
-        log.debug('Established connection to APNS on {0}:{1}.'
-                  .format(self.host, self.port))
+        log.debug(
+            "Established connection to APNS on {0}:{1}.".format(self.host, self.port)
+        )
 
     def close(self):
         """Disconnect from APNS server."""
         if self.sock:
-            log.debug('Closing connection to APNS.')
+            log.debug("Closing connection to APNS.")
             self.sock.close()
         self.sock = None
 
@@ -343,8 +349,7 @@ class APNSConnection(object):
         try:
             return select.select([], [self.client], [], timeout)[1]
         except Exception:  # pragma: no cover
-            log.debug('Error while waiting for APNS socket to become '
-                      'writable.')
+            log.debug("Error while waiting for APNS socket to become " "writable.")
             self.close()
             raise
 
@@ -353,14 +358,13 @@ class APNSConnection(object):
         try:
             return select.select([self.client], [], [], timeout)[0]
         except Exception:  # pragma: no cover
-            log.debug('Error while waiting for APNS socket to become '
-                      'readable.')
+            log.debug("Error while waiting for APNS socket to become " "readable.")
             self.close()
             raise
 
     def read(self, buffsize, timeout=10):
         """Return read data up to `buffsize`."""
-        data = b''
+        data = b""
 
         while True:
             if not self.readable(timeout):  # pragma: no cover
@@ -382,8 +386,9 @@ class APNSConnection(object):
             self.close()
             raise socket.timeout
 
-        log.debug('Sending APNS notification batch containing {0} bytes.'
-                  .format(len(data)))
+        log.debug(
+            "Sending APNS notification batch containing {0} bytes.".format(len(data))
+        )
 
         return self.client.sendall(data)
 
@@ -396,24 +401,25 @@ class APNSConnection(object):
         try:
             data = self.read(APNS_ERROR_RESPONSE_LEN, timeout=0)
         except socket.error as ex:  # pragma: no cover
-            log.error('Could not read response: {0}.'.format(ex))
+            log.error("Could not read response: {0}.".format(ex))
             self.close()
             return
 
         if not data:  # pragma: no cover
             return
 
-        command = struct.unpack('>B', data[:1])[0]
+        command = struct.unpack(">B", data[:1])[0]
 
         if command != APNS_ERROR_RESPONSE_COMMAND:  # pragma: no cover
             self.close()
             return
 
-        code, identifier = struct.unpack('>BI', data[1:])
+        code, identifier = struct.unpack(">BI", data[1:])
 
-        log.debug('Received APNS error response with '
-                  'code={0} for identifier={1}.'
-                  .format(code, identifier))
+        log.debug(
+            "Received APNS error response with "
+            "code={0} for identifier={1}.".format(code, identifier)
+        )
 
         self.close()
         raise_apns_server_error(code, identifier)
@@ -435,30 +441,33 @@ class APNSConnection(object):
                     success = True
                 except socket.error as ex:
                     last_ex = ex
-                    log.warning('Could not send frame to server: {0}. '
-                                'Retrying send operation.'
-                                .format(ex))
+                    log.warning(
+                        "Could not send frame to server: {0}. "
+                        "Retrying send operation.".format(ex)
+                    )
                     self.close()
                     retries -= 1
 
             if not success:
-                log.error('Could not send frame to server: {0}.'
-                          .format(last_ex))
+                log.error("Could not send frame to server: {0}.".format(last_ex))
                 raise APNSTimeoutError(current_identifier)
 
             self.check_error(0)
             current_identifier = frames.next_identifier
 
-    def sendall(self,
-                stream,
-                error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
-                retries=APNS_DEFAULT_RETRIES):
-        """Send all notifications while handling errors. If an error occurs,
-        then resume sending starting from after the token that failed. If any
-        tokens failed, raise an error after sending all tokens.
+    def sendall(
+        self,
+        stream,
+        error_timeout=APNS_DEFAULT_ERROR_TIMEOUT,
+        retries=APNS_DEFAULT_RETRIES,
+    ):
         """
-        log.debug('Preparing to send {0} notifications to APNS.'
-                  .format(len(stream)))
+        Send all notifications while handling errors.
+
+        If an error occurs, then resume sending starting from after the token that
+        failed. If any tokens failed, raise an error after sending all tokens.
+        """
+        log.debug("Preparing to send {0} notifications to APNS.".format(len(stream)))
 
         errors = []
 
@@ -477,41 +486,47 @@ class APNSConnection(object):
                 if ex.fatal:
                     # We can't continue due to a fatal error. Go ahead and
                     # convert remaining notifications to errors.
-                    errors += [APNSUnsendableError(next_identifier + i)
-                               for i, _ in enumerate(stream.peek())]
+                    errors += [
+                        APNSUnsendableError(next_identifier + i)
+                        for i, _ in enumerate(stream.peek())
+                    ]
                     break
 
             if stream.eof():
                 break
 
-        log.debug('Sent {0} notifications to APNS.'.format(len(stream)))
+        log.debug("Sent {0} notifications to APNS.".format(len(stream)))
 
         if errors:
-            log.debug('Encountered {0} errors while sending to APNS.'
-                      .format(len(errors)))
+            log.debug(
+                "Encountered {0} errors while sending to APNS.".format(len(errors))
+            )
 
         return APNSResponse(stream.tokens, stream.message, errors)
 
 
 class APNSMessage(object):
     """APNs message object that serializes to JSON."""
-    def __init__(self,
-                 message=None,
-                 badge=None,
-                 sound=None,
-                 category=None,
-                 content_available=None,
-                 title=None,
-                 title_loc_key=None,
-                 title_loc_args=None,
-                 action_loc_key=None,
-                 loc_key=None,
-                 loc_args=None,
-                 launch_image=None,
-                 mutable_content=None,
-                 thread_id=None,
-                 extra=None,
-                 max_payload_length=None):
+
+    def __init__(
+        self,
+        message=None,
+        badge=None,
+        sound=None,
+        category=None,
+        content_available=None,
+        title=None,
+        title_loc_key=None,
+        title_loc_args=None,
+        action_loc_key=None,
+        loc_key=None,
+        loc_args=None,
+        launch_image=None,
+        mutable_content=None,
+        thread_id=None,
+        extra=None,
+        max_payload_length=None,
+    ):
         self.message = message
         self.badge = badge
         self.sound = sound
@@ -533,22 +548,26 @@ class APNSMessage(object):
         """Return message as dictionary, overriding message."""
         msg = {}
 
-        if any([self.title,
+        if any(
+            [
+                self.title,
                 self.title_loc_key,
                 self.title_loc_args,
                 self.action_loc_key,
                 self.loc_key,
                 self.loc_args,
-                self.launch_image]):
+                self.launch_image,
+            ]
+        ):
             alert = {
-                'body': message,
-                'title': self.title,
-                'title-loc-key': self.title_loc_key,
-                'title-loc-args': self.title_loc_args,
-                'action-loc-key': self.action_loc_key,
-                'loc-key': self.loc_key,
-                'loc-args': self.loc_args,
-                'launch-image': self.launch_image,
+                "body": message,
+                "title": self.title,
+                "title-loc-key": self.title_loc_key,
+                "title-loc-args": self.title_loc_args,
+                "action-loc-key": self.action_loc_key,
+                "loc-key": self.loc_key,
+                "loc-args": self.loc_args,
+                "launch-image": self.launch_image,
             }
 
             alert = compact_dict(alert)
@@ -556,22 +575,24 @@ class APNSMessage(object):
             alert = message
 
         msg.update(self.extra or {})
-        msg['aps'] = compact_dict({
-            'alert': alert,
-            'badge': self.badge,
-            'sound': self.sound,
-            'category': self.category,
-            'content-available': 1 if self.content_available else None,
-            'mutable-content': 1 if self.mutable_content else None,
-            'thread-id': self.thread_id
-        })
+        msg["aps"] = compact_dict(
+            {
+                "alert": alert,
+                "badge": self.badge,
+                "sound": self.sound,
+                "category": self.category,
+                "content-available": 1 if self.content_available else None,
+                "mutable-content": 1 if self.mutable_content else None,
+                "thread-id": self.thread_id,
+            }
+        )
 
         return msg
 
     def _construct_truncated_dict(self, message):
         """Return truncated message as dictionary."""
         msg = None
-        ending = ''
+        ending = ""
 
         while message:
             data = self._construct_dict(message + ending)
@@ -581,7 +602,7 @@ class APNSMessage(object):
                 break
 
             message = message[0:-1]
-            ending = '...'
+            ending = "..."
 
         if msg is None:  # pragma: no cover
             msg = self._construct_dict()
@@ -605,15 +626,9 @@ class APNSMessage(object):
 
 
 class APNSMessageStream(object):
-    """Iterable object that yields a binary APNS socket frame for each device
-    token.
-    """
-    def __init__(self,
-                 tokens,
-                 message,
-                 expiration,
-                 priority,
-                 batch_size=1):
+    """Iterable object that yields a binary APNS socket frame for each device token."""
+
+    def __init__(self, tokens, message, expiration, priority, batch_size=1):
         self.tokens = tokens
         self.message = message
         self.expiration = expiration
@@ -622,8 +637,9 @@ class APNSMessageStream(object):
         self.next_identifier = 0
 
     def seek(self, identifier):
-        """Move token index to resume processing after token with index equal
-        to `identifier`.
+        """
+        Move token index to resume processing after token with index equal to
+        `identifier`.
 
         Typically, `identifier` will be the token index that generated an error
         during send. Seeking to this identifier will result in processing the
@@ -635,7 +651,7 @@ class APNSMessageStream(object):
         self.next_identifier = identifier
 
     def peek(self, n=None):
-        return self.tokens[self.next_identifier:n]
+        return self.tokens[self.next_identifier : n]
 
     def eof(self):
         """Return whether all tokens have been processed."""
@@ -650,23 +666,36 @@ class APNSMessageStream(object):
         # |CMD|FRAMELEN|{token}|{message}|{id:4}|{expiration:4}|{priority:1}
         # 5 items, each 3 bytes prefix, then each item length
         frame_len = (
-            APNS_PUSH_FRAME_ITEM_COUNT * APNS_PUSH_FRAME_ITEM_PREFIX_LEN +
-            token_len +
-            message_len +
-            APNS_PUSH_IDENTIFIER_LEN +
-            APNS_PUSH_EXPIRATION_LEN +
-            APNS_PUSH_PRIORITY_LEN)
-        frame_fmt = '>BIBH{0}sBH{1}sBHIBHIBHB'.format(token_len, message_len)
+            APNS_PUSH_FRAME_ITEM_COUNT * APNS_PUSH_FRAME_ITEM_PREFIX_LEN
+            + token_len
+            + message_len
+            + APNS_PUSH_IDENTIFIER_LEN
+            + APNS_PUSH_EXPIRATION_LEN
+            + APNS_PUSH_PRIORITY_LEN
+        )
+        frame_fmt = ">BIBH{0}sBH{1}sBHIBHIBHB".format(token_len, message_len)
 
         # NOTE: Each bare int below is the corresponding frame item ID.
         frame = struct.pack(
             frame_fmt,
-            APNS_PUSH_COMMAND, frame_len,  # BI
-            1, token_len, token_bin,  # BH{token_len}s
-            2, message_len, message,  # BH{message_len}s
-            3, APNS_PUSH_IDENTIFIER_LEN, identifier,  # BHI
-            4, APNS_PUSH_EXPIRATION_LEN, expiration,  # BHI
-            5, APNS_PUSH_PRIORITY_LEN, priority)  # BHB
+            APNS_PUSH_COMMAND,
+            frame_len,  # BI
+            1,
+            token_len,
+            token_bin,  # BH{token_len}s
+            2,
+            message_len,
+            message,  # BH{message_len}s
+            3,
+            APNS_PUSH_IDENTIFIER_LEN,
+            identifier,  # BHI
+            4,
+            APNS_PUSH_EXPIRATION_LEN,
+            expiration,  # BHI
+            5,
+            APNS_PUSH_PRIORITY_LEN,
+            priority,
+        )  # BHB
 
         return frame
 
@@ -678,34 +707,32 @@ class APNSMessageStream(object):
         """Iterate through each device token and yield APNS socket frame."""
         message = self.message.to_json()
 
-        data = b''
-        tokens = self.tokens[self.next_identifier:]
+        data = b""
+        tokens = self.tokens[self.next_identifier :]
 
         for token_chunk in chunk(tokens, self.batch_size):
             for token in token_chunk:
-                log.debug('Preparing notification for APNS token {0}'
-                          .format(token))
+                log.debug("Preparing notification for APNS token {0}".format(token))
 
-                data += self.pack(token,
-                                  self.next_identifier,
-                                  message,
-                                  self.expiration,
-                                  self.priority)
+                data += self.pack(
+                    token, self.next_identifier, message, self.expiration, self.priority
+                )
                 self.next_identifier += 1
 
             yield data
 
-            data = b''
+            data = b""
 
 
 class APNSFeedbackStream(object):
     """An iterable object that yields an expired device token."""
+
     def __init__(self, conn):
         self.conn = conn
 
     def __iter__(self):
         """Iterate through and yield expired device tokens."""
-        header_format = '!LH'
+        header_format = "!LH"
 
         while True:
             data = self.conn.read(APNS_FEEDBACK_HEADER_LEN)
@@ -717,14 +744,15 @@ class APNSFeedbackStream(object):
             token_data = self.conn.read(token_len)
 
             if token_data:
-                token = struct.unpack('{0}s'.format(token_len), token_data)
-                token = hexlify(token[0]).decode('utf8')
+                token = struct.unpack("{0}s".format(token_len), token_data)
+                token = hexlify(token[0]).decode("utf8")
 
                 yield APNSExpiredToken(token, timestamp)
 
 
 class APNSResponse(object):
-    """Response from APNS after sending tokens.
+    """
+    Response from APNS after sending tokens.
 
     Attributes:
         tokens (list): List of all tokens sent during bulk sending.
@@ -737,6 +765,7 @@ class APNSResponse(object):
 
     .. versionadded:: 1.0.0
     """
+
     def __init__(self, tokens, message, errors):
         self.tokens = tokens
         self.message = message
@@ -750,39 +779,38 @@ class APNSResponse(object):
             self.failures.append(tok)
             self.token_errors[tok] = err
 
-        self.successes = [token for token in tokens
-                          if token not in self.failures]
+        self.successes = [token for token in tokens if token not in self.failures]
 
 
-class APNSExpiredToken(namedtuple('APNSExpiredToken', ['token', 'timestamp'])):
-    """Represents an expired APNS token with the timestamp of when it expired.
+class APNSExpiredToken(namedtuple("APNSExpiredToken", ["token", "timestamp"])):
+    """
+    Represents an expired APNS token with the timestamp of when it expired.
 
     Attributes:
         token (str): Expired APNS token.
         timestamp (int): Epoch timestamp.
     """
+
     pass
 
 
 def create_socket(host, port, certificate):
     """Create a socket connection to the APNS server."""
     try:
-        with open(certificate, 'r') as fileobj:
+        with open(certificate, "r") as fileobj:
             fileobj.read()
     except Exception as ex:
-        raise APNSAuthError('The certificate at {0} is not readable: {1}'
-                            .format(certificate, ex))
+        raise APNSAuthError(
+            "The certificate at {0} is not readable: {1}".format(certificate, ex)
+        )
 
     sock = socket.socket()
 
-    sock = ssl.wrap_socket(sock,
-                           certfile=certificate,
-                           do_handshake_on_connect=False)
+    sock = ssl.wrap_socket(sock, certfile=certificate, do_handshake_on_connect=False)
     sock.connect((host, port))
     sock.setblocking(0)
 
-    log.debug('Performing SSL handshake with APNS on {0}:{1}'
-              .format(host, port))
+    log.debug("Performing SSL handshake with APNS on {0}:{1}".format(host, port))
 
     do_ssl_handshake(sock)
 
@@ -828,14 +856,16 @@ def validate_tokens(tokens):
     invalid = invalid_tokens(tokens)
 
     if invalid:
-        raise APNSInvalidTokenError('Invalid token format. '
-                                    'Expected hex string: {0}'
-                                    .format(', '.join(invalid)))
+        raise APNSInvalidTokenError(
+            "Invalid token format. "
+            "Expected hex string: {0}".format(", ".join(invalid))
+        )
 
 
 def validate_message(message):
     """Check whether `message` is valid."""
     if len(message) > APNS_MAX_NOTIFICATION_SIZE:
-        raise APNSInvalidPayloadSizeError('Notification body cannot exceed '
-                                          '{0} bytes'
-                                          .format(APNS_MAX_NOTIFICATION_SIZE))
+        raise APNSInvalidPayloadSizeError(
+            "Notification body cannot exceed "
+            "{0} bytes".format(APNS_MAX_NOTIFICATION_SIZE)
+        )

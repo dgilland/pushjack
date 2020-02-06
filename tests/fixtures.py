@@ -32,7 +32,7 @@ from pushjack.utils import json_dumps, json_loads
 parametrize = pytest.mark.parametrize
 
 
-TCP_HOST = '0.0.0.0'
+TCP_HOST = "0.0.0.0"
 TCP_PORT = 12345
 TCP_CONNECT = (TCP_HOST, TCP_PORT)
 
@@ -86,24 +86,23 @@ def apns_socket_factory(connect=None):
 
 def apns_socket_error_factory(return_status):
     sock = apns_socket_factory()
-    sock.read = lambda n: struct.pack('>BBI',
-                                      APNS_ERROR_RESPONSE_COMMAND,
-                                      return_status,
-                                      0)
+    sock.read = lambda n: struct.pack(
+        ">BBI", APNS_ERROR_RESPONSE_COMMAND, return_status, 0
+    )
     return sock
 
 
 def apns_feedback_socket_factory(tokens):
-    data = {'stream': b''}
+    data = {"stream": b""}
 
     for token in tokens:
         token = binascii.unhexlify(token)
-        data['stream'] += struct.pack('!LH', int(time.time()), len(token))
-        data['stream'] += struct.pack('{0}s'.format(len(token)), token)
+        data["stream"] += struct.pack("!LH", int(time.time()), len(token))
+        data["stream"] += struct.pack("{0}s".format(len(token)), token)
 
     def read(n):
-        out = data['stream'][:n]
-        data['stream'] = data['stream'][n:]
+        out = data["stream"][:n]
+        data["stream"] = data["stream"][n:]
         return out
 
     sock = apns_socket_factory()
@@ -113,14 +112,13 @@ def apns_feedback_socket_factory(tokens):
 
 
 def apns_tokens(num=1):
-    tokens = [hashlib.sha256(str(n).encode('utf8')).hexdigest()
-              for n in range(num)]
+    tokens = [hashlib.sha256(str(n).encode("utf8")).hexdigest() for n in range(num)]
     return tokens[0] if num == 1 else tokens
 
 
 @pytest.fixture
 def apns_socket():
-    with mock.patch('pushjack.apns.create_socket') as create_socket:
+    with mock.patch("pushjack.apns.create_socket") as create_socket:
         sock = apns_socket_factory(TCP_CONNECT)
         create_socket.return_value = sock
 
@@ -131,7 +129,7 @@ def apns_socket():
 
 @contextmanager
 def apns_create_error_socket(code):
-    with mock.patch('pushjack.apns.create_socket') as create_socket:
+    with mock.patch("pushjack.apns.create_socket") as create_socket:
         sock = apns_socket_error_factory(code)
         create_socket.return_value = sock
 
@@ -143,31 +141,28 @@ def apns_create_error_socket(code):
 def gcm_server_response_factory(content, status_code=200):
     @httmock.all_requests
     def response(url, request):
-        headers = {'content-type': 'application/json'}
-        return httmock.response(status_code,
-                                content,
-                                headers,
-                                None,
-                                1,
-                                request)
+        headers = {"content-type": "application/json"}
+        return httmock.response(status_code, content, headers, None, 1, request)
+
     return response
 
 
 @httmock.all_requests
 def gcm_server_response(url, request):
     payload = json_loads(request.body)
-    headers = {'content-type': 'application/json'}
+    headers = {"content-type": "application/json"}
     registration_ids = gcm_registration_ids(payload)
     content = {
-        'multicast_id': 1,
-        'success': len(registration_ids),
-        'failure': 0,
-        'canonical_ids': 0,
-        'results': []
+        "multicast_id": 1,
+        "success": len(registration_ids),
+        "failure": 0,
+        "canonical_ids": 0,
+        "results": [],
     }
 
-    content['results'] = [{'message_id': registration_id}
-                          for registration_id in registration_ids]
+    content["results"] = [
+        {"message_id": registration_id} for registration_id in registration_ids
+    ]
 
     return httmock.response(200, content, headers, None, 1, request)
 
@@ -175,13 +170,13 @@ def gcm_server_response(url, request):
 @pytest.fixture
 def gcm_client():
     """Return GCM client."""
-    return GCMClient(api_key='1234')
+    return GCMClient(api_key="1234")
 
 
 def gcm_registration_ids(payload):
-    if 'registration_ids' in payload:
-        ids = payload['registration_ids']
+    if "registration_ids" in payload:
+        ids = payload["registration_ids"]
     else:
-        ids = [payload['to']]
+        ids = [payload["to"]]
 
     return ids

@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 # flake8: noqa
 # pylint: skip-file
-"""Python 2/3 compatibility
+"""
+Python 2/3 compatibility.
 
-    Some py2/py3 compatibility support based on a stripped down
-    version of six so we don't have to depend on a specific version
-    of it.
+Some py2/py3 compatibility support based on a stripped down
+version of six so we don't have to depend on a specific version
+of it.
 
-    Borrowed from
-    https://github.com/mitsuhiko/flask/blob/master/flask/_compat.py
+Borrowed from
+https://github.com/mitsuhiko/flask/blob/master/flask/_compat.py
 """
 
 import sys
@@ -19,7 +20,8 @@ PY3 = sys.version_info[0] == 3
 PY26 = sys.version_info[0:2] == (2, 6)
 
 
-def _identity(x): return x
+def _identity(x):
+    return x
 
 
 if PY3:
@@ -28,11 +30,14 @@ if PY3:
     integer_types = (int,)
     number_types = (int, float, Decimal)
 
-    def iterkeys(d): return iter(d.keys())
+    def iterkeys(d):
+        return iter(d.keys())
 
-    def itervalues(d): return iter(d.values())
+    def itervalues(d):
+        return iter(d.values())
 
-    def iteritems(d): return iter(d.items())
+    def iteritems(d):
+        return iter(d.items())
 
     range_ = range
 
@@ -43,15 +48,18 @@ else:
     integer_types = (int, long)
     number_types = (int, long, float, Decimal)
 
-    def iterkeys(d): return d.iterkeys()
+    def iterkeys(d):
+        return d.iterkeys()
 
-    def itervalues(d): return d.itervalues()
+    def itervalues(d):
+        return d.itervalues()
 
-    def iteritems(d): return d.iteritems()
+    def iteritems(d):
+        return d.iteritems()
 
     range_ = xrange
 
     def implements_to_string(cls):
         cls.__unicode__ = cls.__str__
-        cls.__str__ = lambda x: x.__unicode__().encode('utf-8')
+        cls.__str__ = lambda x: x.__unicode__().encode("utf-8")
         return cls
