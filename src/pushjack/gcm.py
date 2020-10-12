@@ -85,7 +85,7 @@ class GCMClient(object):
                 be used for the ``notification`` payload.
 
         Keyword Args:
-            notificatoin (dict, optional): Notification payload. Can include
+            notification (dict, optional): Notification payload. Can include
                 the fields ``body``, ``title``, and ``icon``.
             collapse_key (str, optional): Identifier for a group of messages
                 that can be collapsed so that only the last message gets sent
