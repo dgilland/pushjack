@@ -6,6 +6,8 @@ pushjack
 
 Push notifications for APNS (iOS) and GCM (Android).
 
+*****WARNING: PROJECT DEPRECATED AND NO LONGER MAINTAINED*****
+
 
 Links
 =====
